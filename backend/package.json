@@ -1,0 +1,15 @@
+{
+  "name": "ai-assistant-backend",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@prisma/client": "^6.11.1",
+    "next": "15.3.5",
+    "z-ai-web-dev-sdk": "^0.0.10",
+    "tsx": "^4.20.3"
+  },
+  "scripts": {
+    "dev": "nodemon --exec \"npx tsx server.ts\" --watch server.ts --watch ../src --ext ts,tsx,js,jsx",
+    "start": "NODE_ENV=production tsx server.ts"
+  }
+}
