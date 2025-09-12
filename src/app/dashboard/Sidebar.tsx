@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { LayoutDashboard, History, ChevronLeft, ChevronRight, MessageSquarePlus, Sparkles } from "lucide-react"
+import { LayoutDashboard, History, Settings, User, ChevronLeft, ChevronRight, MessageSquarePlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { createNewConversation } from "@/lib/conversation-manager"
@@ -15,12 +15,12 @@ interface SidebarItem {
   icon: React.ElementType
 }
 
-// Remove Settings from the items array
 const items: SidebarItem[] = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "Chat History", href: "/dashboard/conversations", icon: History },
-  { label: "AI Features", href: "/dashboard/features", icon: Sparkles },
-  // Settings removed as requested
+  // { label: "Profile", href: "/dashboard/profile", icon: User },
+  // { label: "Settings", href: "/dashboard/settings", icon: Settings },
+  // AI Features removed as requested
 ]
 
 export default function Sidebar() {

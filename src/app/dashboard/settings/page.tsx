@@ -19,7 +19,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<string>('general')
 
   const handleClose = () => {
-    router.back()
+    router.push('/dashboard')
   }
 
   const renderSettingsContent = () => {

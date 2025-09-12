@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { OpenAI } from 'openai'
 import { databaseService as db } from '@/lib/database-service'
 import { simpleStorage } from '@/lib/simple-storage'
+import { GPTService } from '@/services/gptService'
+import { GeminiService } from '@/services/geminiService'
+import { ClaudeService } from '@/services/claudeService'
+import { GrokService } from '@/services/grokService'
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, conversationId } = await request.json()
+    const { messages, conversationId, model = 'gpt' } = await request.json()
 
     console.log('Received request:', { messages, conversationId })
 
@@ -68,17 +72,49 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check for API keys (prioritize OpenRouter)
-    const openRouterKey = process.env.OPENROUTER_API_KEY
-    const openaiKey = process.env.OPENAI_API_KEY
+    // Check which model is requested and validate API keys accordingly
+    console.log('Requested model:', model)
     
-    console.log('API Keys Check:', {
-      hasOpenRouter: !!openRouterKey,
-      hasOpenAI: !!openaiKey,
-    })
+    let aiService: any;
+    let serviceName = 'AI'; // Initialize with default value
     
-    if (!openRouterKey && (!openaiKey || openaiKey === "sk-your-openai-api-key-here")) {
-      // Save messages to database even in test mode
+    try {
+      switch (model) {
+        case 'gpt':
+          aiService = new GPTService();
+          serviceName = 'GPT';
+          if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'sk-your-openai-api-key-here') {
+            throw new Error('OpenAI API key not configured');
+          }
+          break;
+        case 'gemini':
+          aiService = new GeminiService();
+          serviceName = 'Gemini';
+          if (!process.env.GEMINI_API_KEY) {
+            throw new Error('Gemini API key not configured');
+          }
+          break;
+        case 'claude':
+          aiService = new ClaudeService();
+          serviceName = 'Claude';
+          if (!process.env.ANTHROPIC_API_KEY) {
+            throw new Error('Anthropic API key not configured');
+          }
+          break;
+        case 'grok':
+          aiService = new GrokService();
+          serviceName = 'Grok';
+          if (!process.env.XAI_API_KEY) {
+            throw new Error('X.AI API key not configured');
+          }
+          break;
+        default:
+          throw new Error(`Unsupported model: ${model}`);
+      }
+    } catch (configError: any) {
+      console.error('Configuration error:', configError);
+      
+      // Save messages to database even in error case
       const userMessage = messages[messages.length - 1]
       try {
         await db.message.create({
@@ -91,71 +127,26 @@ export async function POST(request: NextRequest) {
         
         await db.message.create({
           data: {
-            content: 'AI assistant is not properly configured. Please check your API keys.',
+            content: `${serviceName} service is not properly configured: ${configError?.message || 'Unknown error'}`,
             role: 'assistant',
             conversationId: finalConversationId
           }
         })
       } catch (dbError) {
         console.error('Database error:', dbError)
-        console.error('Attempted to save with conversationId:', finalConversationId)
-        // Verify the conversation still exists
-        try {
-          const conversationExists = await db.conversation.findUnique({
-            where: { id: finalConversationId }
-          })
-          console.log('Conversation exists:', !!conversationExists)
-          if (conversationExists) {
-            console.log('Conversation details:', conversationExists)
-          }
-        } catch (verifyError) {
-          console.error('Error verifying conversation:', verifyError)
-        }
       }
       
       return NextResponse.json({
-        response: 'AI assistant is not properly configured. Please check your API keys.',
+        response: `${serviceName} service is not properly configured: ${configError?.message || 'Unknown error'}`,
         conversationId: finalConversationId
       })
     }
 
-    // Initialize OpenAI client (works with OpenRouter too)
-    const apiKey = openRouterKey || openaiKey
-    const baseURL = openRouterKey ? "https://openrouter.ai/api/v1" : "https://api.openai.com/v1"
-    
-    console.log('Using API Config:', {
-      service: openRouterKey ? 'OpenRouter' : 'OpenAI',
-      baseURL: baseURL,
-    })
-    
-    const openai = new OpenAI({
-      apiKey: apiKey,
-      baseURL: baseURL,
-      defaultHeaders: {
-        "HTTP-Referer": process.env.NEXTAUTH_URL || "http://localhost:3000",
-        "X-Title": "AI Assistant Chat"
-      }
-    })
-
     try {
-      // Get AI response
-      const modelToUse = openRouterKey ? 'meta-llama/llama-3.3-8b-instruct:free' : 'gpt-3.5-turbo'
-      console.log('Using model:', modelToUse)
+      console.log(`Using ${serviceName} service`)
       
-      const completion = await openai.chat.completions.create({
-        model: modelToUse,
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a helpful AI assistant. Be conversational, informative, and engaging.'
-          },
-          ...messages
-        ],
-        temperature: 0.7,
-        max_tokens: 1000
-      })
-
-      const aiResponse = completion.choices[0]?.message?.content || 'I apologize, but I could not generate a response.'
+      // Get AI response using the selected service
+      const aiResponse = await aiService.generateResponse(messages)
 
       // Save user message to database
       const userMessage = messages[messages.length - 1]
@@ -230,14 +221,11 @@ export async function POST(request: NextRequest) {
         conversationId: finalConversationId
       })
 
-    } catch (openaiError: any) {
-      // Handle API specific errors (quota, billing, etc.)
-      const service = openRouterKey ? "OpenRouter" : "OpenAI"
-      console.error(`${service} API Error:`, {
-        status: openaiError?.status,
-        message: openaiError?.message,
-        error: openaiError?.error,
-        code: openaiError?.code
+    } catch (aiError: any) {
+      // Handle AI service specific errors
+      console.error(`${serviceName} API Error:`, {
+        message: aiError?.message,
+        error: aiError
       })
       
       // Save error message to database
@@ -251,12 +239,7 @@ export async function POST(request: NextRequest) {
           }
         })
         
-        let errorMessage = `AI service error: ${openaiError?.message || 'Unknown error'}`
-        if (openaiError?.status === 429) {
-          errorMessage = `${service} quota exceeded. Please check your account.`
-        } else if (openaiError?.status === 401) {
-          errorMessage = `${service} API key invalid. Please check your configuration.`
-        }
+        let errorMessage = `${serviceName} service error: ${aiError?.message || 'Unknown error'}`
         
         await db.message.create({
           data: {
@@ -267,23 +250,10 @@ export async function POST(request: NextRequest) {
         })
       } catch (dbError) {
         console.error('Database error when saving error message:', dbError)
-        console.error('Attempted to save with conversationId:', finalConversationId)
-        // Verify the conversation still exists
-        try {
-          const conversationExists = await db.conversation.findUnique({
-            where: { id: finalConversationId }
-          })
-          console.log('Conversation exists:', !!conversationExists)
-          if (conversationExists) {
-            console.log('Conversation details:', conversationExists)
-          }
-        } catch (verifyError) {
-          console.error('Error verifying conversation:', verifyError)
-        }
       }
       
       return NextResponse.json({
-        response: `AI service error: ${openaiError?.message || 'Unknown error'}`,
+        response: `${serviceName} service error: ${aiError?.message || 'Unknown error'}`,
         conversationId: finalConversationId
       })
     }

@@ -161,6 +161,7 @@ export default function Chat0UIInterface() {
         body: JSON.stringify({
           messages: [{ role: 'user', content: userMessageContent }],
           conversationId: currentConversationId,
+          model: selectedModel,
         }),
       })
 
@@ -456,7 +457,7 @@ export default function Chat0UIInterface() {
           </Button>
         </form>
         <p className="text-xs text-muted-foreground mt-2 text-center">
-          AI Assistant may produce inaccurate information about people, places, or facts
+          AI Assistant may produce inaccurate information about people, places, or facts • Using {selectedModel.toUpperCase()} model
         </p>
       </div>
     </div>

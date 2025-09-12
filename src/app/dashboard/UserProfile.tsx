@@ -29,11 +29,11 @@ export function UserProfile() {
   }
 
   const handleProfile = () => {
-    router.push('/profile')
+    router.push('/dashboard/profile')
   }
 
   const handleSettings = () => {
-    router.push('/preferences')
+    router.push('/dashboard/settings')
   }
 
   // Handle Help section navigation - open in new tab
