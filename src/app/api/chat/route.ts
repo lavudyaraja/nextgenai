@@ -5,7 +5,8 @@ import { simpleStorage } from '@/lib/simple-storage'
 import { GPTService } from '@/services/gptService'
 import { GeminiService } from '@/services/geminiService'
 import { ClaudeService } from '@/services/claudeService'
-import { GrokService } from '@/services/grokService'
+import { ZAIService } from '@/services/zaiService'
+import { OpenRouterService } from '@/services/openrouterService'
 
 export async function POST(request: NextRequest) {
   try {
@@ -101,11 +102,18 @@ export async function POST(request: NextRequest) {
             throw new Error('Anthropic API key not configured');
           }
           break;
-        case 'grok':
-          aiService = new GrokService();
-          serviceName = 'Grok';
-          if (!process.env.XAI_API_KEY) {
-            throw new Error('X.AI API key not configured');
+        case 'zai':
+          aiService = new ZAIService();
+          serviceName = 'Z.AI';
+          if (!process.env.Z_AI_API_KEY) {
+            throw new Error('Z.AI API key not configured');
+          }
+          break;
+        case 'openrouter':
+          aiService = new OpenRouterService();
+          serviceName = 'OpenRouter';
+          if (!process.env.OPENROUTER_API_KEY) {
+            throw new Error('OpenRouter API key not configured');
           }
           break;
         default:
@@ -222,13 +230,159 @@ export async function POST(request: NextRequest) {
       })
 
     } catch (aiError: any) {
-      // Handle AI service specific errors
+      // Handle AI service specific errors with automatic fallback
       console.error(`${serviceName} API Error:`, {
         message: aiError?.message,
         error: aiError
       })
       
-      // Save error message to database
+      // Check if it's a quota/rate limit error and try fallback providers
+      const isQuotaError = aiError?.message?.includes('quota') || 
+                          aiError?.message?.includes('429') ||
+                          aiError?.message?.includes('rate limit') ||
+                          aiError?.message?.includes('Insufficient balance')
+      
+      if (isQuotaError && (model === 'gpt' || model === 'zai')) {
+        console.log(`${serviceName} quota exceeded, trying fallback providers...`)
+        
+        // Try Gemini first as fallback
+        try {
+          if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your-gemini-api-key-here') {
+            console.log('Attempting fallback to Gemini...')
+            const geminiService = new GeminiService()
+            const aiResponse = await geminiService.generateResponse(messages)
+            
+            // Save messages to database
+            const userMessage = messages[messages.length - 1]
+            await db.message.create({
+              data: {
+                content: userMessage.content,
+                role: userMessage.role,
+                conversationId: finalConversationId
+              }
+            })
+            
+            await db.message.create({
+              data: {
+                content: `*Note: Switched to Gemini due to OpenAI quota limit*\n\n${aiResponse}`,
+                role: 'assistant',
+                conversationId: finalConversationId
+              }
+            })
+            
+            return NextResponse.json({
+              response: `*Note: Switched to Gemini due to OpenAI quota limit*\n\n${aiResponse}`,
+              conversationId: finalConversationId
+            })
+          }
+        } catch (geminiError) {
+          console.log('Gemini fallback failed, trying Claude...', geminiError)
+        }
+        
+        // Try Claude as second fallback
+        try {
+          if (process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== 'your-anthropic-api-key-here') {
+            console.log('Attempting fallback to Claude...')
+            const claudeService = new ClaudeService()
+            const aiResponse = await claudeService.generateResponse(messages)
+            
+            // Save messages to database
+            const userMessage = messages[messages.length - 1]
+            await db.message.create({
+              data: {
+                content: userMessage.content,
+                role: userMessage.role,
+                conversationId: finalConversationId
+              }
+            })
+            
+            await db.message.create({
+              data: {
+                content: `*Note: Switched to Claude due to OpenAI quota limit*\n\n${aiResponse}`,
+                role: 'assistant',
+                conversationId: finalConversationId
+              }
+            })
+            
+            return NextResponse.json({
+              response: `*Note: Switched to Claude due to OpenAI quota limit*\n\n${aiResponse}`,
+              conversationId: finalConversationId
+            })
+          }
+        } catch (claudeError) {
+          console.log('Claude fallback failed, trying Grok...', claudeError)
+        }
+        
+        // Try Z.AI as third fallback
+        try {
+          if (process.env.Z_AI_API_KEY && process.env.Z_AI_API_KEY !== 'your-zai-api-key-here') {
+            console.log('Attempting fallback to Z.AI...')
+            const zaiService = new ZAIService()
+            const aiResponse = await zaiService.generateResponse(messages)
+            
+            // Save messages to database
+            const userMessage = messages[messages.length - 1]
+            await db.message.create({
+              data: {
+                content: userMessage.content,
+                role: userMessage.role,
+                conversationId: finalConversationId
+              }
+            })
+            
+            await db.message.create({
+              data: {
+                content: `*Note: Switched to Z.AI due to OpenAI quota limit*\n\n${aiResponse}`,
+                role: 'assistant',
+                conversationId: finalConversationId
+              }
+            })
+            
+            return NextResponse.json({
+              response: `*Note: Switched to Z.AI due to OpenAI quota limit*\n\n${aiResponse}`,
+              conversationId: finalConversationId
+            })
+          }
+        } catch (zaiError) {
+          console.log('Z.AI fallback failed', zaiError)
+        }
+        
+        // Try OpenRouter as final fallback
+        try {
+          if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY !== 'your-openrouter-api-key-here') {
+            console.log('Attempting fallback to OpenRouter...')
+            const openrouterService = new OpenRouterService()
+            const aiResponse = await openrouterService.generateResponse(messages)
+            
+            // Save messages to database
+            const userMessage = messages[messages.length - 1]
+            await db.message.create({
+              data: {
+                content: userMessage.content,
+                role: userMessage.role,
+                conversationId: finalConversationId
+              }
+            })
+            
+            await db.message.create({
+              data: {
+                content: `*Note: Switched to OpenRouter due to ${serviceName} quota limit*\n\n${aiResponse}`,
+                role: 'assistant',
+                conversationId: finalConversationId
+              }
+            })
+            
+            return NextResponse.json({
+              response: `*Note: Switched to OpenRouter due to ${serviceName} quota limit*\n\n${aiResponse}`,
+              conversationId: finalConversationId
+            })
+          }
+        } catch (openrouterError) {
+          console.log('OpenRouter fallback failed', openrouterError)
+        }
+      }
+      
+      // If no fallback worked or it's not a quota error, save error message to database
       try {
         const userMessage = messages[messages.length - 1]
         await db.message.create({
@@ -239,7 +393,9 @@ export async function POST(request: NextRequest) {
           }
         })
         
-        let errorMessage = `${serviceName} service error: ${aiError?.message || 'Unknown error'}`
+        let errorMessage = isQuotaError ? 
+          `${serviceName} quota/balance exceeded and no fallback providers are available. Please recharge your account or configure additional AI providers.` :
+          `${serviceName} service error: ${aiError?.message || 'Unknown error'}`
         
         await db.message.create({
           data: {
@@ -248,14 +404,18 @@ export async function POST(request: NextRequest) {
             conversationId: finalConversationId
           }
         })
+        
+        return NextResponse.json({
+          response: errorMessage,
+          conversationId: finalConversationId
+        })
       } catch (dbError) {
         console.error('Database error when saving error message:', dbError)
+        return NextResponse.json({
+          response: `${serviceName} service error: ${aiError?.message || 'Unknown error'}`,
+          conversationId: finalConversationId
+        })
       }
-      
-      return NextResponse.json({
-        response: `${serviceName} service error: ${aiError?.message || 'Unknown error'}`,
-        conversationId: finalConversationId
-      })
     }
   } catch (error) {
     console.error('Chat API error:', error)

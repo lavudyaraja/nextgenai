@@ -4,47 +4,137 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/contexts";
 import { Layout } from "@/components/layout";
+import { Suspense } from "react";
+import { PerformanceMonitor } from "@/components/PerformanceMonitor";
 
-
+// Optimized font loading with preload and display swap
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
+  preload: true,
+  fallback: ['system-ui', 'sans-serif'],
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
+  preload: true,
+  fallback: ['Monaco', 'Consolas', 'monospace'],
 });
 
 export const metadata: Metadata = {
-  title: "AI Assistant",
-  description: "Chat with AI Assistant",
+  title: {
+    default: "AI Assistant",
+    template: "%s | AI Assistant"
+  },
+  description: "Advanced AI Assistant with multi-provider integration, real-time chat, and intelligent responses",
+  keywords: ["AI", "Assistant", "Chat", "OpenAI", "Claude", "Gemini", "Real-time"],
+  authors: [{ name: "AI Assistant Team" }],
+  creator: "AI Assistant",
+  publisher: "AI Assistant",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
+  alternates: {
+    canonical: '/'
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    title: 'AI Assistant',
+    description: 'Advanced AI Assistant with multi-provider integration',
+    siteName: 'AI Assistant',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AI Assistant',
+    description: 'Advanced AI Assistant with multi-provider integration',
+  },
 };
 
 export const viewport = {
   width: "device-width",
   initialScale: 1.0,
-  maximumScale: 1.0,
-  userScalable: false,
+  maximumScale: 5.0,
+  userScalable: true,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#000000' },
+  ],
 };
+
+// Loading component for Suspense
+function LoadingFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    </div>
+  );
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Preload critical resources */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        
+        {/* DNS prefetch for external services */}
+        <link rel="dns-prefetch" href="https://api.openai.com" />
+        <link rel="dns-prefetch" href="https://api.anthropic.com" />
+        <link rel="dns-prefetch" href="https://generativelanguage.googleapis.com" />
+        <link rel="dns-prefetch" href="https://api.z.ai" />
+        <link rel="dns-prefetch" href="https://openrouter.ai" />
+        
+        {/* Resource hints */}
+        <link rel="preload" href="/fonts" as="font" type="font/woff2" crossOrigin="anonymous" />
+        
+        {/* Performance and SEO meta tags */}
+        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        
+        {/* Favicon and app icons */}
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
+        suppressHydrationWarning
       >
-        <AuthProvider>
-          <Layout>
-            {children}
-          </Layout>
-          <Toaster />
-        </AuthProvider>
+        <PerformanceMonitor />
+        <Suspense fallback={<LoadingFallback />}>
+          <AuthProvider>
+            <Layout>
+              {children}
+            </Layout>
+            <Toaster />
+          </AuthProvider>
+        </Suspense>
       </body>
     </html>
   );

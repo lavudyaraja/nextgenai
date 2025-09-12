@@ -11,10 +11,11 @@ export class ClaudeService {
 
   async generateResponse(messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>): Promise<string> {
     try {
-      // Claude doesn't support system messages in the same way, so we need to handle them differently
+      // Claude requires specific message format and handling
       let systemMessage = '';
       const claudeMessages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
 
+      // Process messages to separate system from conversation messages
       for (const message of messages) {
         if (message.role === 'system') {
           systemMessage = message.content;
@@ -30,9 +31,25 @@ export class ClaudeService {
       if (!systemMessage) {
         systemMessage = 'You are a helpful AI assistant. Be conversational, informative, and engaging.';
       }
+      
+      // Ensure we have at least one user message
+      if (claudeMessages.length === 0) {
+        claudeMessages.push({
+          role: 'user',
+          content: 'Hello'
+        });
+      }
+      
+      // Ensure the conversation starts with a user message
+      if (claudeMessages[0]?.role !== 'user') {
+        claudeMessages.unshift({
+          role: 'user',
+          content: 'Please respond to my previous message.'
+        });
+      }
 
       const response = await this.anthropic.messages.create({
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-3-5-haiku-20241022', // Updated to latest model
         max_tokens: 1000,
         system: systemMessage,
         messages: claudeMessages

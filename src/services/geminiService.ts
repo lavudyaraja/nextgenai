@@ -9,16 +9,41 @@ export class GeminiService {
 
   async generateResponse(messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>): Promise<string> {
     try {
-      const model = this.genAI.getGenerativeModel({ model: "gemini-pro" });
+      const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Updated to latest model
       
-      // Convert messages to Gemini format
-      const geminiMessages = messages.map(msg => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.content }]
-      }));
+      // Gemini requires specific handling - system messages need to be prepended to first user message
+      let systemPrompt = '';
+      const processedMessages: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
+      
+      // Extract system message if present
+      for (const msg of messages) {
+        if (msg.role === 'system') {
+          systemPrompt = msg.content;
+        } else if (msg.role === 'user') {
+          const content = systemPrompt ? `${systemPrompt}\n\n${msg.content}` : msg.content;
+          processedMessages.push({
+            role: 'user',
+            parts: [{ text: content }]
+          });
+          systemPrompt = ''; // Only add system prompt to first user message
+        } else if (msg.role === 'assistant') {
+          processedMessages.push({
+            role: 'model',
+            parts: [{ text: msg.content }]
+          });
+        }
+      }
+      
+      // If no user messages but we have a system prompt, create a default user message
+      if (processedMessages.length === 0 && systemPrompt) {
+        processedMessages.push({
+          role: 'user',
+          parts: [{ text: systemPrompt }]
+        });
+      }
 
       const result = await model.generateContent({
-        contents: geminiMessages
+        contents: processedMessages
       });
 
       const response = result.response;

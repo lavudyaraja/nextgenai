@@ -1,20 +1,20 @@
 import OpenAI from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
-export class GPTService {
-  private openai: OpenAI;
+export class OpenRouterService {
+  private client: OpenAI;
 
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY || '',
-      baseURL: "https://api.openai.com/v1"
+    this.client = new OpenAI({
+      apiKey: process.env.OPENROUTER_API_KEY || '',
+      baseURL: 'https://openrouter.ai/api/v1',
     });
   }
 
   async generateResponse(messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>): Promise<string> {
     try {
-      const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+      const completion = await this.client.chat.completions.create({
+        model: 'anthropic/claude-3-haiku', // Using Claude 3 Haiku via OpenRouter (cost-effective)
         messages: [
           {
             role: 'system' as const,
@@ -26,13 +26,13 @@ export class GPTService {
           }))
         ] as ChatCompletionMessageParam[],
         temperature: 0.7,
-        max_tokens: 1000
+        max_tokens: 1000,
       });
 
       return completion.choices[0]?.message?.content || 'I apologize, but I could not generate a response.';
     } catch (error) {
-      console.error('GPT API Error:', error);
-      throw new Error(`Failed to get response from GPT: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('OpenRouter API Error:', error);
+      throw new Error(`Failed to get response from OpenRouter: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

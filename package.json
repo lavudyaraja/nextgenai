@@ -11,6 +11,10 @@
     "build": "next build",
     "start": "NODE_ENV=production tsx backend/server.ts",
     "lint": "next lint",
+    "analyze": "ANALYZE=true npm run build",
+    "build:profile": "next build --profile",
+    "perf:build": "node scripts/performance-build.js",
+    "lighthouse": "lighthouse http://localhost:3000 --view",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -101,6 +105,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@next/bundle-analyzer": "^15.3.5",
     "@tailwindcss/postcss": "^4.1.13",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -111,7 +116,8 @@
     "nodemon": "^3.1.10",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.5",
-    "typescript": "^5"
+    "typescript": "^5",
+    "webpack-bundle-analyzer": "^4.10.2"
   },
   "build": {
     "appId": "com.aiassistant.chat",
