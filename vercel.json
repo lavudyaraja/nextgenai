@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run db:generate && npm run build",
   "installCommand": "npm install --legacy-peer-deps",
   "outputDirectory": ".next",
   "framework": "nextjs"
