@@ -11,6 +11,7 @@
   },
   "scripts": {
     "dev": "nodemon --exec \"npx tsx server.ts\" --watch server.ts --watch ../src --ext ts,tsx,js,jsx",
+    "build": "echo 'Backend build completed'",
     "start": "NODE_ENV=production tsx server.ts"
   }
 }
