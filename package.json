@@ -6,9 +6,6 @@
   "homepage": "./",
   "type": "module",
   "packageManager": "npm@10.9.2",
-  "workspaces": [
-    "backend"
-  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
