@@ -1,0 +1,295 @@
+import { db } from './db'  // Use the real Prisma client
+
+// Type definitions
+export type Message = {
+  id: string
+  conversationId: string
+  content: string
+  role: 'user' | 'assistant'
+  createdAt: Date
+  updatedAt: Date
+  imageUrl?: string | null
+}
+
+export type Conversation = {
+  id: string
+  title?: string | null
+  userId: string
+  isPinned?: boolean
+  isArchived?: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type ConversationWithMessages = Conversation & {
+  messages: Message[]
+}
+
+// Database service that uses the real Prisma client
+class DatabaseService {
+  conversation = {
+    create: async (data: any): Promise<Conversation> => {
+      try {
+        const result = await db.conversation.create(data)
+        console.log('DatabaseService: Created conversation via Prisma:', result.id)
+        return result
+      } catch (error) {
+        console.error('DatabaseService: Failed to create conversation:', error)
+        throw error
+      }
+    },
+
+    findUnique: async (data: any): Promise<ConversationWithMessages | null> => {
+      try {
+        // Ensure messages are included in the query
+        const queryData = {
+          ...data,
+          include: {
+            ...(data.include || {}),
+            messages: data.include?.messages !== undefined ? data.include.messages : true
+          }
+        };
+        
+        const result = await db.conversation.findUnique(queryData)
+        if (result) {
+          console.log('DatabaseService: Found conversation:', result.id)
+        } else {
+          console.log('DatabaseService: Conversation not found:', data.where.id)
+        }
+        return result as ConversationWithMessages | null
+      } catch (error) {
+        console.error('DatabaseService: Error finding conversation:', error)
+        return null
+      }
+    },
+
+    update: async (data: any): Promise<Conversation | null> => {
+      try {
+        const result = await db.conversation.update(data)
+        if (result) {
+          console.log('DatabaseService: Updated conversation:', result.id)
+        }
+        return result
+      } catch (error) {
+        console.error('DatabaseService: Failed to update conversation:', error)
+        throw error
+      }
+    },
+
+    delete: async (data: any): Promise<boolean> => {
+      try {
+        await db.conversation.delete(data)
+        console.log('DatabaseService: Deleted conversation:', data.where.id)
+        return true
+      } catch (error) {
+        console.error('DatabaseService: Failed to delete conversation:', error)
+        throw error
+      }
+    },
+
+    findMany: async (data: any = {}): Promise<ConversationWithMessages[]> => {
+      try {
+        console.log('DatabaseService: Finding many conversations with options:', data)
+        // Ensure messages are always included in the query for this method
+        const queryData = {
+          ...data,
+          include: {
+            ...(data.include || {}),
+            messages: true
+          }
+        };
+        
+        const result: any[] = await db.conversation.findMany(queryData)
+        console.log('DatabaseService: Retrieved', result.length, 'conversations from database')
+        // Ensure messages array exists for all conversations
+        return result.map(conv => ({
+          ...conv,
+          messages: conv.messages || []
+        } as ConversationWithMessages))
+      } catch (error) {
+        console.error('DatabaseService - Failed to find conversations:', error)
+        return []
+      }
+    },
+
+    // Add count method to mimic Prisma conversation.count
+    count: async (data: any = {}): Promise<number> => {
+      try {
+        const result = await db.conversation.count(data)
+        return result
+      } catch (error) {
+        console.error('DatabaseService - Failed to count conversations:', error)
+        return 0
+      }
+    }
+  }
+
+  message = {
+    create: async (data: any): Promise<Message> => {
+      try {
+        const result: any = await db.message.create(data)
+        console.log('DatabaseService: Created message:', result.id)
+        // Ensure updatedAt field is present (use createdAt if updatedAt doesn't exist in DB)
+        // Also ensure role is properly typed
+        return {
+          ...result,
+          role: result.role as 'user' | 'assistant',
+          updatedAt: result.updatedAt || result.createdAt
+        } as Message
+      } catch (error) {
+        console.error('DatabaseService: Failed to create message:', error)
+        throw error
+      }
+    },
+
+    findUnique: async (data: any): Promise<Message | null> => {
+      try {
+        const result: any = await db.message.findUnique(data)
+        // Ensure updatedAt field is present
+        if (result) {
+          return {
+            ...result,
+            role: result.role as 'user' | 'assistant',
+            updatedAt: result.updatedAt || result.createdAt
+          } as Message
+        }
+        return result
+      } catch (error) {
+        console.error('DatabaseService: Failed to find message:', error)
+        return null
+      }
+    },
+
+    findMany: async (data: any): Promise<Message[]> => {
+      try {
+        const result: any[] = await db.message.findMany(data)
+        // Ensure updatedAt field is present for all messages (use createdAt if updatedAt doesn't exist in DB)
+        // Also ensure role is properly typed
+        return result.map(msg => ({
+          ...msg,
+          role: msg.role as 'user' | 'assistant',
+          updatedAt: msg.updatedAt || msg.createdAt
+        } as Message))
+      } catch (error) {
+        console.error('DatabaseService: Failed to find messages:', error)
+        return []
+      }
+    },
+
+    update: async (data: any): Promise<Message> => {
+      try {
+        const result: any = await db.message.update(data)
+        // Ensure updatedAt field is present (use current time if updatedAt doesn't exist in DB)
+        // Also ensure role is properly typed
+        return {
+          ...result,
+          role: result.role as 'user' | 'assistant',
+          updatedAt: result.updatedAt || new Date()
+        } as Message
+      } catch (error) {
+        console.error('DatabaseService: Failed to update message:', error)
+        throw error
+      }
+    },
+
+    delete: async (data: any): Promise<boolean> => {
+      try {
+        await db.message.delete(data)
+        return true
+      } catch (error) {
+        console.error('DatabaseService: Failed to delete message:', error)
+        throw error
+      }
+    },
+
+    // Add count method to mimic Prisma message.count
+    count: async (data: any = {}): Promise<number> => {
+      try {
+        const result = await db.message.count(data)
+        return result
+      } catch (error) {
+        console.error('DatabaseService - Failed to count messages:', error)
+        return 0
+      }
+    }
+  }
+
+  // Add the missing getConversations method
+  async getConversations(): Promise<ConversationWithMessages[]> {
+    try {
+      console.log('DatabaseService: Getting conversations...')
+      // Use the existing findMany method which properly handles messages
+      const conversations = await this.conversation.findMany({
+        include: {
+          messages: true
+        },
+        orderBy: {
+          updatedAt: 'desc'
+        }
+      })
+      
+      console.log('DatabaseService: Retrieved', conversations.length, 'conversations with messages')
+      
+      // Ensure proper date conversion and structure
+      const processedConversations = conversations.map(conv => ({
+        ...conv,
+        createdAt: new Date(conv.createdAt),
+        updatedAt: new Date(conv.updatedAt),
+        messages: (conv.messages || []).map(msg => ({
+          ...msg,
+          timestamp: new Date(msg.createdAt),
+          createdAt: new Date(msg.createdAt)
+        }))
+      }))
+
+      console.log('DatabaseService: Returning', processedConversations.length, 'processed conversations')
+      return processedConversations
+    } catch (error) {
+      console.error('DatabaseService - Failed to get conversations:', error)
+      return []
+    }
+  }
+
+  // Add the missing createConversation method
+  async createConversation(title?: string): Promise<string> {
+    try {
+      const newConversation = await db.conversation.create({
+        data: {
+          title: title || 'New Chat',
+          userId: 'default-user',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      })
+      
+      console.log('DatabaseService: Created conversation with ID:', newConversation.id)
+      return newConversation.id
+    } catch (error) {
+      console.error('DatabaseService - Failed to create conversation:', error)
+      throw error
+    }
+  }
+
+  $transaction = async (operations: any[]) => {
+    // Use Prisma's transaction functionality
+    return await db.$transaction(operations)
+  }
+
+  $connect = async () => {
+    // Connect to the database
+    console.log('DatabaseService: Connecting to database')
+    return await db.$connect()
+  }
+
+  $disconnect = async () => {
+    // Disconnect from the database
+    console.log('DatabaseService: Disconnecting from database')
+    return await db.$disconnect()
+  }
+}
+
+// Export a singleton instance
+export const databaseService = new DatabaseService()
+
+// Also export the class itself for direct instantiation if needed
+export { DatabaseService }

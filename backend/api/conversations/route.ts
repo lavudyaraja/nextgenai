@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { databaseService as db } from '@/lib/database-service'
 
 export async function GET() {
   try {
+    console.log('Fetching all conversations...')
     const conversations = await db.conversation.findMany({
       include: {
         messages: {
@@ -14,6 +15,7 @@ export async function GET() {
       take: 50
     })
 
+    console.log('Returning', conversations.length, 'conversations')
     return NextResponse.json(conversations)
   } catch (error) {
     console.error('Get conversations error:', error)
@@ -27,6 +29,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const { title } = await request.json()
+    console.log('Creating new conversation with title:', title)
 
     const conversation = await db.conversation.create({
       data: {
@@ -37,6 +40,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    console.log('Created new conversation:', conversation.id)
     return NextResponse.json(conversation)
   } catch (error) {
     console.error('Create conversation error:', error)
