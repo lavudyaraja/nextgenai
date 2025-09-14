@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation"
 import { createNewConversation } from "@/lib/conversation-manager"
 import { UserProfile } from "./UserProfile" // Import UserProfile component
 import { SidebarChatHistory } from "@/components/chat"
+import AILogo from "@/components/ai-logo"
 
 interface SidebarItem {
   label: string
@@ -50,15 +51,13 @@ export default function Sidebar() {
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-700">
-        {!collapsed && <span className="font-bold text-lg">AI Assistant</span>}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-gray-300 "
+        <div 
+          className="flex items-center cursor-pointer"
           onClick={() => setCollapsed(!collapsed)}
         >
-          {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-        </Button>
+          <AILogo className="mr-2" size={collapsed ? 24 : 32} />
+          {!collapsed && <span className="font-bold text-lg">ChatAI</span>}
+        </div>
       </div>
 
       {/* New Chat */}
@@ -94,13 +93,7 @@ export default function Sidebar() {
 
       {/* Footer with UserProfile */}
       <div className={`p-4 border-t border-gray-700 ${collapsed ? 'flex justify-center' : ''}`}>
-        {!collapsed ? (
-          <UserProfile />
-        ) : (
-          <div className="flex justify-center">
-            <UserProfile />
-          </div>
-        )}
+        <UserProfile />
       </div>
     </aside>
   )

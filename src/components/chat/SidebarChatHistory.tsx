@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from 'next/navigation'
 import { formatTime } from '@/lib/conversation-manager'
+import { useAuth } from '@/contexts/auth-context'
 
 interface ChatItem {
   id: string
@@ -30,16 +31,40 @@ interface ChatItem {
 
 export function SidebarChatHistory() {
   const router = useRouter()
+  const { user } = useAuth() // Get the current user from auth context
   const [conversations, setConversations] = useState<ChatItem[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Fetch conversations from API
   const fetchConversations = async () => {
     try {
+      setError(null)
       console.log('Fetching conversations for sidebar...')
+      
+      // Prepare headers with user ID
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+      
+      // Add user ID to headers if available
+      if (user?.id) {
+        headers['x-user-id'] = user.id
+      }
+      
       // Use the API to get conversations
-      const response = await fetch('/api/conversations')
+      const response = await fetch('/api/conversations', {
+        headers
+      })
+      console.log('Response status:', response.status)
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
+      }
+      
       const data = await response.json()
       console.log('Fetched raw data from /api/conversations:', data)
       
@@ -51,17 +76,20 @@ export function SidebarChatHistory() {
       const chatItems: ChatItem[] = conversationsArray
         .filter((conv: any) => conv && conv.id) // Filter out invalid conversations
         .map((conv: any) => {
-          // Get the last message for display
+          // Get the first user message as the title
           const messages = Array.isArray(conv.messages) ? conv.messages : []
-          const lastMessage = messages.length > 0 
-            ? messages[messages.length - 1] 
-            : null
+          const firstUserMessage = messages.find((msg: any) => msg.role === 'user')
+          
+          // Use first user message as title, or fall back to a generic title
+          const title = firstUserMessage 
+            ? firstUserMessage.content.substring(0, 40) + (firstUserMessage.content.length > 40 ? '...' : '')
+            : 'New Conversation'
 
           return {
             id: conv.id,
-            title: conv.title || `Chat ${formatTime(new Date(conv.createdAt || new Date()))}`,
-            lastMessage: lastMessage?.content || 'New conversation',
-            timestamp: new Date(conv.updatedAt || conv.createdAt || new Date())
+            title: title,
+            lastMessage: '', // We don't need to show last message in sidebar
+            timestamp: new Date(conv.updatedAt || conv.createdAt)
           }
         })
         // Sort by timestamp, newest first
@@ -71,6 +99,8 @@ export function SidebarChatHistory() {
       setConversations(chatItems)
     } catch (err) {
       console.error('Failed to fetch conversations for sidebar:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch conversations')
+      // Show error state to user
       setConversations([])
     } finally {
       setLoading(false)
@@ -92,7 +122,7 @@ export function SidebarChatHistory() {
     return () => {
       window.removeEventListener('chatHistoryUpdated', handleChatHistoryUpdate)
     }
-  }, [])
+  }, [user?.id]) // Re-fetch when user changes
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -146,6 +176,22 @@ export function SidebarChatHistory() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="px-2 py-4 text-center text-sm text-red-500">
+        Error: {error}
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="ml-2"
+          onClick={fetchConversations}
+        >
+          Retry
+        </Button>
+      </div>
+    )
+  }
+
   if (conversations.length === 0) {
     return (
       <div className="px-2 py-4 text-center text-sm text-muted-foreground">
@@ -180,11 +226,6 @@ export function SidebarChatHistory() {
                 <MessageCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{conversation.title}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {conversation.lastMessage.length > 80 
-                      ? conversation.lastMessage.substring(0, 80) + '...' 
-                      : conversation.lastMessage}
-                  </p>
                 </div>
               </div>
               <div className="opacity-0 group-hover:opacity-100 transition-opacity">

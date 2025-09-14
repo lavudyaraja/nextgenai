@@ -1,2 +1,8 @@
-// This file is intentionally left empty as components have been reorganized
-// Each subfolder now manages its own exports
+// Export all components
+export * from './chat'
+export * from './layout'
+export * from './settings'
+// export * from './ui'
+
+// Export the new AI logo component
+export { default as AILogo } from './ai-logo'

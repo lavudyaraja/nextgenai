@@ -5,8 +5,9 @@ export class OpenRouterService {
   private client: OpenAI;
 
   constructor() {
+    // Use OPENAI_API_KEY as fallback if OPENROUTER_API_KEY is not provided
     this.client = new OpenAI({
-      apiKey: process.env.OPENROUTER_API_KEY || '',
+      apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || '',
       baseURL: 'https://openrouter.ai/api/v1',
     });
   }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import ZAI from 'z-ai-web-dev-sdk'
+import OpenAI from 'openai'
 import { databaseService as db } from '../../../src/lib/database-service'
 
 // Define types for our data
@@ -29,8 +29,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 })
     }
 
-    // Initialize ZAI
-    const zai = await ZAI.create()
+    // Initialize OpenAI
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY || '',
+    })
 
     // Create conversation if not exists
     let conversation: Conversation | null = null
@@ -84,7 +86,8 @@ export async function POST(request: NextRequest) {
     ]
 
     // Get AI response
-    const completion = await zai.chat.completions.create({
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
       messages: aiMessages,
       temperature: 0.7,
       max_tokens: 1000

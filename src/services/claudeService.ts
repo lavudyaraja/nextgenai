@@ -4,8 +4,9 @@ export class ClaudeService {
   private anthropic: Anthropic;
 
   constructor() {
+    // Use OPENAI_API_KEY as fallback if ANTHROPIC_API_KEY is not provided
     this.anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY || '',
+      apiKey: process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || '',
     });
   }
 

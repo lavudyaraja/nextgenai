@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import ZAI from 'z-ai-web-dev-sdk'
+import OpenAI from 'openai'
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,16 +9,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 })
     }
 
-    // Initialize ZAI
-    const zai = await ZAI.create()
-
-    // Generate image
-    const response = await zai.images.generations.create({
-      prompt,
-      size
+    // Initialize OpenAI
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY || '',
     })
 
-    const imageBase64 = response.data[0]?.base64
+    // Generate image
+    const response = await openai.images.generate({
+      model: 'dall-e-3',
+      prompt,
+      size: size as any,
+      response_format: 'b64_json'
+    })
+
+    // Check if response data exists and has at least one item
+    if (!response.data || response.data.length === 0) {
+      return NextResponse.json({ error: 'Failed to generate image' }, { status: 500 })
+    }
+
+    const imageBase64 = response.data[0].b64_json
 
     if (!imageBase64) {
       return NextResponse.json({ error: 'Failed to generate image' }, { status: 500 })

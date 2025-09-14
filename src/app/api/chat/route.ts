@@ -5,7 +5,6 @@ import { simpleStorage } from '@/lib/simple-storage'
 import { GPTService } from '@/services/gptService'
 import { GeminiService } from '@/services/geminiService'
 import { ClaudeService } from '@/services/claudeService'
-import { ZAIService } from '@/services/zaiService'
 import { OpenRouterService } from '@/services/openrouterService'
 
 export async function POST(request: NextRequest) {
@@ -84,40 +83,42 @@ export async function POST(request: NextRequest) {
         case 'gpt':
           aiService = new GPTService();
           serviceName = 'GPT';
-          if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'sk-your-openai-api-key-here') {
+          if (!process.env.OPENAI_API_KEY) {
             throw new Error('OpenAI API key not configured');
           }
           break;
         case 'gemini':
           aiService = new GeminiService();
           serviceName = 'Gemini';
-          if (!process.env.GEMINI_API_KEY) {
-            throw new Error('Gemini API key not configured');
+          // Allow OPENAI_API_KEY as fallback
+          if (!process.env.GEMINI_API_KEY && !process.env.OPENAI_API_KEY) {
+            throw new Error('Gemini API key not configured (no fallback available)');
           }
           break;
         case 'claude':
           aiService = new ClaudeService();
           serviceName = 'Claude';
-          if (!process.env.ANTHROPIC_API_KEY) {
-            throw new Error('Anthropic API key not configured');
-          }
-          break;
-        case 'zai':
-          aiService = new ZAIService();
-          serviceName = 'Z.AI';
-          if (!process.env.Z_AI_API_KEY) {
-            throw new Error('Z.AI API key not configured');
+          // Allow OPENAI_API_KEY as fallback
+          if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) {
+            throw new Error('Anthropic API key not configured (no fallback available)');
           }
           break;
         case 'openrouter':
           aiService = new OpenRouterService();
           serviceName = 'OpenRouter';
-          if (!process.env.OPENROUTER_API_KEY) {
-            throw new Error('OpenRouter API key not configured');
+          // Allow OPENAI_API_KEY as fallback
+          if (!process.env.OPENROUTER_API_KEY && !process.env.OPENAI_API_KEY) {
+            throw new Error('OpenRouter API key not configured (no fallback available)');
           }
           break;
         default:
-          throw new Error(`Unsupported model: ${model}`);
+          // Default to GPT service if model is not specified or unsupported
+          aiService = new GPTService();
+          serviceName = 'GPT';
+          if (!process.env.OPENAI_API_KEY) {
+            throw new Error('OpenAI API key not configured');
+          }
+          break;
       }
     } catch (configError: any) {
       console.error('Configuration error:', configError);
@@ -155,6 +156,9 @@ export async function POST(request: NextRequest) {
       
       // Get AI response using the selected service
       const aiResponse = await aiService.generateResponse(messages)
+      
+      // Clean up the AI response by removing excessive spacing and markdown characters
+      const cleanedResponse = cleanAiResponse(aiResponse)
 
       // Save user message to database
       const userMessage = messages[messages.length - 1]
@@ -192,7 +196,7 @@ export async function POST(request: NextRequest) {
       try {
         await db.message.create({
           data: {
-            content: aiResponse,
+            content: cleanedResponse,
             role: 'assistant',
             conversationId: finalConversationId
           }
@@ -220,12 +224,12 @@ export async function POST(request: NextRequest) {
       }
 
       console.log('Sending response:', {
-        response: aiResponse,
+        response: cleanedResponse,
         conversationId: finalConversationId
       })
 
       return NextResponse.json({
-        response: aiResponse,
+        response: cleanedResponse,
         conversationId: finalConversationId
       })
 
@@ -242,143 +246,118 @@ export async function POST(request: NextRequest) {
                           aiError?.message?.includes('rate limit') ||
                           aiError?.message?.includes('Insufficient balance')
       
-      if (isQuotaError && (model === 'gpt' || model === 'zai')) {
-        console.log(`${serviceName} quota exceeded, trying fallback providers...`)
+      if (isQuotaError && model === 'gpt') {
+        console.log(`${serviceName} quota exceeded, trying fallback providers...`);
         
         // Try Gemini first as fallback
         try {
-          if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your-gemini-api-key-here') {
-            console.log('Attempting fallback to Gemini...')
-            const geminiService = new GeminiService()
-            const aiResponse = await geminiService.generateResponse(messages)
+          // Use OPENAI_API_KEY as fallback if GEMINI_API_KEY is not provided
+          if ((process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your-gemini-api-key-here') || 
+              process.env.OPENAI_API_KEY) {
+            console.log('Attempting fallback to Gemini...');
+            const geminiService = new GeminiService();
+            const aiResponse = await geminiService.generateResponse(messages);
+            const cleanedResponse = cleanAiResponse(aiResponse);
             
             // Save messages to database
-            const userMessage = messages[messages.length - 1]
+            const userMessage = messages[messages.length - 1];
             await db.message.create({
               data: {
                 content: userMessage.content,
                 role: userMessage.role,
                 conversationId: finalConversationId
               }
-            })
+            });
             
             await db.message.create({
               data: {
-                content: `*Note: Switched to Gemini due to OpenAI quota limit*\n\n${aiResponse}`,
+                content: `*Note: Switched to Gemini due to OpenAI quota limit*\n\n${cleanedResponse}`,
                 role: 'assistant',
                 conversationId: finalConversationId
               }
-            })
+            });
             
             return NextResponse.json({
-              response: `*Note: Switched to Gemini due to OpenAI quota limit*\n\n${aiResponse}`,
+              response: `*Note: Switched to Gemini due to OpenAI quota limit*\n\n${cleanedResponse}`,
               conversationId: finalConversationId
-            })
+            });
           }
         } catch (geminiError) {
-          console.log('Gemini fallback failed, trying Claude...', geminiError)
+          console.log('Gemini fallback failed, trying Claude...', geminiError);
         }
         
         // Try Claude as second fallback
         try {
-          if (process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== 'your-anthropic-api-key-here') {
-            console.log('Attempting fallback to Claude...')
-            const claudeService = new ClaudeService()
-            const aiResponse = await claudeService.generateResponse(messages)
+          // Use OPENAI_API_KEY as fallback if ANTHROPIC_API_KEY is not provided
+          if ((process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== 'your-anthropic-api-key-here') || 
+              process.env.OPENAI_API_KEY) {
+            console.log('Attempting fallback to Claude...');
+            const claudeService = new ClaudeService();
+            const aiResponse = await claudeService.generateResponse(messages);
+            const cleanedResponse = cleanAiResponse(aiResponse);
             
             // Save messages to database
-            const userMessage = messages[messages.length - 1]
+            const userMessage = messages[messages.length - 1];
             await db.message.create({
               data: {
                 content: userMessage.content,
                 role: userMessage.role,
                 conversationId: finalConversationId
               }
-            })
+            });
             
             await db.message.create({
               data: {
-                content: `*Note: Switched to Claude due to OpenAI quota limit*\n\n${aiResponse}`,
+                content: `*Note: Switched to Claude due to OpenAI quota limit*\n\n${cleanedResponse}`,
                 role: 'assistant',
                 conversationId: finalConversationId
               }
-            })
+            });
             
             return NextResponse.json({
-              response: `*Note: Switched to Claude due to OpenAI quota limit*\n\n${aiResponse}`,
+              response: `*Note: Switched to Claude due to OpenAI quota limit*\n\n${cleanedResponse}`,
               conversationId: finalConversationId
-            })
+            });
           }
         } catch (claudeError) {
-          console.log('Claude fallback failed, trying Grok...', claudeError)
-        }
-        
-        // Try Z.AI as third fallback
-        try {
-          if (process.env.Z_AI_API_KEY && process.env.Z_AI_API_KEY !== 'your-zai-api-key-here') {
-            console.log('Attempting fallback to Z.AI...')
-            const zaiService = new ZAIService()
-            const aiResponse = await zaiService.generateResponse(messages)
-            
-            // Save messages to database
-            const userMessage = messages[messages.length - 1]
-            await db.message.create({
-              data: {
-                content: userMessage.content,
-                role: userMessage.role,
-                conversationId: finalConversationId
-              }
-            })
-            
-            await db.message.create({
-              data: {
-                content: `*Note: Switched to Z.AI due to OpenAI quota limit*\n\n${aiResponse}`,
-                role: 'assistant',
-                conversationId: finalConversationId
-              }
-            })
-            
-            return NextResponse.json({
-              response: `*Note: Switched to Z.AI due to OpenAI quota limit*\n\n${aiResponse}`,
-              conversationId: finalConversationId
-            })
-          }
-        } catch (zaiError) {
-          console.log('Z.AI fallback failed', zaiError)
+          console.log('Claude fallback failed, trying OpenRouter...', claudeError);
         }
         
         // Try OpenRouter as final fallback
         try {
-          if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY !== 'your-openrouter-api-key-here') {
-            console.log('Attempting fallback to OpenRouter...')
-            const openrouterService = new OpenRouterService()
-            const aiResponse = await openrouterService.generateResponse(messages)
+          // Use OPENAI_API_KEY as fallback if OPENROUTER_API_KEY is not provided
+          if ((process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY !== 'your-openrouter-api-key-here') || 
+              process.env.OPENAI_API_KEY) {
+            console.log('Attempting fallback to OpenRouter...');
+            const openrouterService = new OpenRouterService();
+            const aiResponse = await openrouterService.generateResponse(messages);
+            const cleanedResponse = cleanAiResponse(aiResponse);
             
             // Save messages to database
-            const userMessage = messages[messages.length - 1]
+            const userMessage = messages[messages.length - 1];
             await db.message.create({
               data: {
                 content: userMessage.content,
                 role: userMessage.role,
                 conversationId: finalConversationId
               }
-            })
+            });
             
             await db.message.create({
               data: {
-                content: `*Note: Switched to OpenRouter due to ${serviceName} quota limit*\n\n${aiResponse}`,
+                content: `*Note: Switched to OpenRouter due to ${serviceName} quota limit*\n\n${cleanedResponse}`,
                 role: 'assistant',
                 conversationId: finalConversationId
               }
-            })
+            });
             
             return NextResponse.json({
-              response: `*Note: Switched to OpenRouter due to ${serviceName} quota limit*\n\n${aiResponse}`,
+              response: `*Note: Switched to OpenRouter due to ${serviceName} quota limit*\n\n${cleanedResponse}`,
               conversationId: finalConversationId
-            })
+            });
           }
         } catch (openrouterError) {
-          console.log('OpenRouter fallback failed', openrouterError)
+          console.log('OpenRouter fallback failed', openrouterError);
         }
       }
       
@@ -397,6 +376,9 @@ export async function POST(request: NextRequest) {
           `${serviceName} quota/balance exceeded and no fallback providers are available. Please recharge your account or configure additional AI providers.` :
           `${serviceName} service error: ${aiError?.message || 'Unknown error'}`
         
+        // Clean the error message as well
+        errorMessage = cleanAiResponse(errorMessage);
+        
         await db.message.create({
           data: {
             content: errorMessage,
@@ -411,8 +393,10 @@ export async function POST(request: NextRequest) {
         })
       } catch (dbError) {
         console.error('Database error when saving error message:', dbError)
+        // Clean the error message before sending it
+        const cleanedErrorMessage = cleanAiResponse(`${serviceName} service error: ${aiError?.message || 'Unknown error'}`);
         return NextResponse.json({
-          response: `${serviceName} service error: ${aiError?.message || 'Unknown error'}`,
+          response: cleanedErrorMessage,
           conversationId: finalConversationId
         })
       }
@@ -424,4 +408,38 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+// Helper function to clean up AI responses
+function cleanAiResponse(response: string): string {
+  if (!response) return response;
+  
+  // Remove excessive newlines (more than 2 consecutive newlines)
+  let cleaned = response.replace(/\n{3,}/g, '\n\n');
+  
+  // Remove leading and trailing whitespace
+  cleaned = cleaned.trim();
+  
+  // Remove markdown heading characters (#) at the beginning of lines
+  cleaned = cleaned.replace(/^#+\s*/gm, '');
+  
+  // More carefully remove markdown bold/italic characters (*) 
+  // Remove ** but preserve content inside
+  cleaned = cleaned.replace(/\*\*(.*?)\*\*/g, '$1');
+  
+  // Remove single * but preserve list items and content
+  // This is tricky - let's remove * only when not at start of line
+  cleaned = cleaned.replace(/(?<!^)\*(?!\s)/g, '');
+  
+  // Remove markdown underline characters (_) but preserve content inside
+  cleaned = cleaned.replace(/__(.*?)__/g, '$1');
+  cleaned = cleaned.replace(/(?<!^)_(?!\s)/g, '');
+  
+  // Clean up any remaining excessive spacing while preserving paragraph breaks
+  cleaned = cleaned.replace(/[ \t]{2,}/g, ' ');
+  
+  // Ensure we don't have more than 2 consecutive newlines
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+  
+  return cleaned;
 }

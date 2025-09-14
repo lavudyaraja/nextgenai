@@ -53,14 +53,27 @@ export const createNewConversation = async (title?: string): Promise<{ id: strin
   if (isBrowser) {
     // Use API call in browser environment
     try {
+      // Get user ID from localStorage (in a real app, you might want to use a more secure method)
+      let userId = 'default-user'
+      try {
+        const storedUser = localStorage.getItem('user')
+        if (storedUser) {
+          const user = JSON.parse(storedUser)
+          userId = user.id || 'default-user'
+        }
+      } catch (e) {
+        console.error('Failed to parse user data', e)
+      }
+      
       const response = await fetch('/api/conversations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': userId
         },
         body: JSON.stringify({
           title: conversationTitle,
-          userId: 'default-user',
+          userId: userId,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         }),
@@ -88,10 +101,13 @@ export const createNewConversation = async (title?: string): Promise<{ id: strin
     const { db } = await import('./db')  // Dynamic import to avoid bundling in browser
     
     try {
+      // Get user ID from environment or use default
+      const userId = process.env.DEFAULT_USER_ID || 'default-user'
+      
       const conversation = await db.conversation.create({
         data: {
           title: conversationTitle,
-          userId: 'default-user',
+          userId: userId,
           createdAt: new Date(),
           updatedAt: new Date()
         }
@@ -207,7 +223,23 @@ export const getAllConversations = async (): Promise<ConversationWithMessages[]>
   if (isBrowser) {
     // Use API call in browser environment
     try {
-      const response = await fetch('/api/conversations')
+      // Get user ID from localStorage (in a real app, you might want to use a more secure method)
+      let userId = 'default-user'
+      try {
+        const storedUser = localStorage.getItem('user')
+        if (storedUser) {
+          const user = JSON.parse(storedUser)
+          userId = user.id || 'default-user'
+        }
+      } catch (e) {
+        console.error('Failed to parse user data', e)
+      }
+      
+      const response = await fetch('/api/conversations', {
+        headers: {
+          'x-user-id': userId
+        }
+      })
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -287,7 +319,12 @@ export const getMessagesByConversationId = async (conversationId: string): Promi
     const conversation = await getConversationById(conversationId)
     
     if (conversation && conversation.messages.length > 0) {
-      return conversation.messages
+      // Ensure all messages have proper IDs and timestamps
+      return conversation.messages.map(msg => ({
+        ...msg,
+        id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: msg.timestamp || new Date()
+      }))
     }
     
     // Return welcome message for empty or new conversations

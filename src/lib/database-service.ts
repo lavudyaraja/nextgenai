@@ -101,10 +101,17 @@ class DatabaseService {
         
         const result: any[] = await db.conversation.findMany(queryData)
         console.log('DatabaseService: Retrieved', result.length, 'conversations from database')
-        // Ensure messages array exists for all conversations
+        // Ensure messages array exists for all conversations and handle date serialization
         return result.map(conv => ({
           ...conv,
-          messages: conv.messages || []
+          createdAt: conv.createdAt instanceof Date ? conv.createdAt : new Date(conv.createdAt),
+          updatedAt: conv.updatedAt instanceof Date ? conv.updatedAt : new Date(conv.updatedAt),
+          messages: (conv.messages || []).map(msg => ({
+            ...msg,
+            createdAt: msg.createdAt instanceof Date ? msg.createdAt : new Date(msg.createdAt),
+            updatedAt: msg.updatedAt instanceof Date ? msg.updatedAt : new Date(msg.updatedAt),
+            role: msg.role as 'user' | 'assistant'
+          }))
         } as ConversationWithMessages))
       } catch (error) {
         console.error('DatabaseService - Failed to find conversations:', error)
@@ -121,8 +128,8 @@ class DatabaseService {
         console.error('DatabaseService - Failed to count conversations:', error)
         return 0
       }
-    }
-  }
+    },
+  };
 
   message = {
     create: async (data: any): Promise<Message> => {
@@ -164,11 +171,12 @@ class DatabaseService {
       try {
         const result: any[] = await db.message.findMany(data)
         // Ensure updatedAt field is present for all messages (use createdAt if updatedAt doesn't exist in DB)
-        // Also ensure role is properly typed
+        // Also ensure role is properly typed and handle date serialization
         return result.map(msg => ({
           ...msg,
-          role: msg.role as 'user' | 'assistant',
-          updatedAt: msg.updatedAt || msg.createdAt
+          createdAt: msg.createdAt instanceof Date ? msg.createdAt : new Date(msg.createdAt),
+          updatedAt: msg.updatedAt instanceof Date ? msg.updatedAt : (msg.createdAt instanceof Date ? msg.createdAt : new Date(msg.createdAt)),
+          role: msg.role as 'user' | 'assistant'
         } as Message))
       } catch (error) {
         console.error('DatabaseService: Failed to find messages:', error)
@@ -211,8 +219,8 @@ class DatabaseService {
         console.error('DatabaseService - Failed to count messages:', error)
         return 0
       }
-    }
-  }
+    },
+  };
 
   // Add the missing getConversations method
   async getConversations(): Promise<ConversationWithMessages[]> {

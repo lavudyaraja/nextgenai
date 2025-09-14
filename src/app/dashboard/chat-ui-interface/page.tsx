@@ -1,5 +1,4 @@
 'use client'
-'use client'
 
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
 import { Button } from '@/components/ui/button'
@@ -50,6 +49,11 @@ const MessageItem = memo(({
   const handleCopy = useCallback(() => onCopy(message.content), [onCopy, message.content])
 
   const renderMessageContent = useMemo(() => {
+    // Handle empty content
+    if (!message.content) {
+      return <p className="text-sm whitespace-pre-wrap">...</p>
+    }
+    
     // Check if content contains code blocks
     const codeBlockRegex = /```(\w+)?\n?([\s\S]*?)```/g
     const parts: React.ReactNode[] = []
@@ -113,7 +117,7 @@ const MessageItem = memo(({
   }, [message.content, onCopy])
 
   return (
-    <div className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'} group`}>
+    <div className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'} group`} key={message.id}>
       {message.role === 'assistant' && (
         <Avatar className="h-8 w-8 flex-shrink-0">
           <AvatarFallback className="bg-primary/10">
@@ -181,6 +185,7 @@ export default function Chat0UIInterface() {
   const [isLoading, setIsLoading] = useState(false)
   const [selectedModel, setSelectedModel] = useState('gpt')
   const [conversationId, setConversationId] = useState<string | null>(urlConversationId)
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false) // Track if initial load is complete
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const inputContainerRef = useRef<HTMLDivElement>(null)
@@ -234,44 +239,89 @@ export default function Chat0UIInterface() {
   // Load conversation messages when component mounts or conversationId changes
   useEffect(() => {
     const loadConversation = async () => {
+      // Skip loading if we're in the middle of creating a new conversation
+      if (!initialLoadComplete && conversationId && conversationId !== urlConversationId) {
+        return
+      }
+      
       if (urlConversationId) {
         try {
           console.log('Loading conversation:', urlConversationId)
           const conversationMessages = await getMessagesByConversationId(urlConversationId)
-          setMessages(conversationMessages)
+          // Only set messages if they're different from current messages
+          // This prevents overriding messages that were just added
+          setMessages(prevMessages => {
+            // If we already have messages and they're not just the welcome message,
+            // don't override them with the loaded messages
+            if (prevMessages.length > 1 || 
+                (prevMessages.length === 1 && prevMessages[0].id !== 'welcome-1')) {
+              // Check if the loaded messages are actually different
+              if (JSON.stringify(prevMessages) !== JSON.stringify(conversationMessages)) {
+                // If there are new messages in the loaded data, merge them
+                // but preserve any messages that were just added
+                const mergedMessages = [...prevMessages]
+                conversationMessages.forEach(loadedMsg => {
+                  if (!prevMessages.some(prevMsg => prevMsg.id === loadedMsg.id)) {
+                    mergedMessages.push(loadedMsg)
+                  }
+                })
+                return mergedMessages
+              }
+              return prevMessages
+            }
+            return conversationMessages
+          })
           setConversationId(urlConversationId)
+          setInitialLoadComplete(true) // Mark initial load as complete
         } catch (error) {
           console.error('Failed to load conversation:', error)
-          // Fallback to welcome message
-          setMessages([
-            {
-              id: 'welcome-1',
-              content: 'Hello! I\'m your AI assistant. How can I help you today?',
-              role: 'assistant',
-              timestamp: new Date(),
+          // Only set welcome message if we don't have any messages
+          setMessages(prevMessages => {
+            if (prevMessages.length === 0) {
+              return [
+                {
+                  id: 'welcome-1',
+                  content: 'Hello! I\'m your AI assistant. How can I help you today?',
+                  role: 'assistant',
+                  timestamp: new Date(),
+                }
+              ]
             }
-          ])
+            return prevMessages
+          })
+          setInitialLoadComplete(true) // Mark initial load as complete even on error
         }
       } else {
-        // New conversation - show welcome message
-        setMessages([
-          {
-            id: 'welcome-1',
-            content: 'Hello! I\'m your AI assistant. How can I help you today?',
-            role: 'assistant',
-            timestamp: new Date(),
+        // New conversation - show welcome message only if no messages exist
+        setMessages(prevMessages => {
+          if (prevMessages.length === 0) {
+            return [
+              {
+                id: 'welcome-1',
+                content: 'Hello! I\'m your AI assistant. How can I help you today?',
+                role: 'assistant',
+                timestamp: new Date(),
+              }
+            ]
           }
-        ])
+          return prevMessages
+        })
+        setInitialLoadComplete(true) // Mark initial load as complete
       }
     }
 
     loadConversation()
-  }, [urlConversationId])
+  }, [urlConversationId, initialLoadComplete]) // Add initialLoadComplete to dependencies
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
-    scrollToBottom()
-  }, [messages, scrollToBottom])
+    // Use requestAnimationFrame to ensure DOM is updated before scrolling
+    const scrollTimeout = setTimeout(() => {
+      scrollToBottom()
+    }, 100)
+    
+    return () => clearTimeout(scrollTimeout)
+  }, [messages, isLoading, scrollToBottom])
 
   // Auto-resize textarea when input changes
   useEffect(() => {
@@ -290,15 +340,22 @@ export default function Chat0UIInterface() {
       textareaRef.current.style.height = '80px'
     }
 
-    // Add user message
+    // Create user message object with a unique ID
+    const userMessageId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     const userMessage: Message = {
-      id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: userMessageId,
       content: userMessageContent,
       role: 'user',
       timestamp: new Date(),
     }
 
-    setMessages(prev => [...prev, userMessage])
+    // Add user message immediately to UI - ensure it's always added and preserved
+    setMessages(prev => {
+      // Always add the user message, don't check for duplicates in this case
+      // to ensure it's never lost during the API call
+      return [...prev, userMessage]
+    })
+
     setIsLoading(true)
 
     try {
@@ -345,48 +402,32 @@ export default function Chat0UIInterface() {
         setConversationId(data.conversationId)
       }
 
-      // Instead of adding AI message manually, reload the conversation from database
-      // to ensure we show exactly what was saved (including user message)
-      if (currentConversationId || data.conversationId) {
-        try {
-          const finalConversationId = currentConversationId || data.conversationId
-          console.log('Reloading conversation messages from database:', finalConversationId)
-          const updatedMessages = await getMessagesByConversationId(finalConversationId)
-          setMessages(updatedMessages)
-        } catch (reloadError) {
-          console.error('Failed to reload conversation:', reloadError)
-          // Fallback: add AI response manually if reload fails
-          const aiMessage: Message = {
-            id: `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            content: data.response || 'I apologize, but I could not generate a response.',
-            role: 'assistant',
-            timestamp: new Date(),
-          }
-          setMessages(prev => [...prev, aiMessage])
-        }
-      } else {
-        // Fallback: add AI response manually if no conversation ID
-        const aiMessage: Message = {
-          id: `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          content: data.response || 'I apologize, but I could not generate a response.',
-          role: 'assistant',
-          timestamp: new Date(),
-        }
-        setMessages(prev => [...prev, aiMessage])
+      // Add AI response to messages
+      const aiMessageId = `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      const aiMessage: Message = {
+        id: aiMessageId,
+        content: data.response || 'I apologize, but I could not generate a response.',
+        role: 'assistant',
+        timestamp: new Date(),
       }
+
+      // Add AI message to the messages array
+      setMessages(prev => [...prev, aiMessage])
 
       // Dispatch event to update sidebar chat history
       window.dispatchEvent(new Event('chatHistoryUpdated'))
 
     } catch (error) {
       console.error('Error calling API:', error)
-      // Handle error
+      // Handle error - add error message
+      const errorId = `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
       const errorMessage: Message = {
-        id: `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: errorId,
         content: `Error: ${error instanceof Error ? error.message : 'Failed to get response from AI assistant'}`,
         role: 'assistant',
         timestamp: new Date(),
       }
+      
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
@@ -406,125 +447,20 @@ export default function Chat0UIInterface() {
     }
   }, [inputValue, isLoading])
 
-  const renderMessageContent = (content: string, messageId: string, role: 'user' | 'assistant') => {
-    // Check if content contains code blocks
-    const codeBlockRegex = /```(\w+)?\n?([\s\S]*?)```/g
-    const parts: React.ReactNode[] = []
-    let lastIndex = 0
-    let match
-    let index = 0
-
-    while ((match = codeBlockRegex.exec(content)) !== null) {
-      // Add text before code block
-      if (match.index > lastIndex) {
-        parts.push(
-          <p key={`text-${index}`} className="text-sm whitespace-pre-wrap">
-            {content.substring(lastIndex, match.index)}
-          </p>
-        )
-        index++
-      }
-
-      // Add code block
-      const language = match[1] || 'text'
-      const codeContent = match[2]
-      parts.push(
-        <div key={`code-${index}`} className="relative my-2 group">
-          <pre className="bg-muted p-4 rounded-md overflow-x-auto">
-            <code className="text-sm">{codeContent}</code>
-          </pre>
-          <Button
-            size="sm"
-            variant="secondary"
-            className="absolute top-2 right-2 h-6 px-2 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={() => copyToClipboard(codeContent)}
-          >
-            <Copy className="h-3 w-3" />
-          </Button>
-        </div>
-      )
-      index++
-
-      lastIndex = match.index + match[0].length
-    }
-
-    // Add remaining text
-    if (lastIndex < content.length) {
-      parts.push(
-        <p key={`text-${index}`} className="text-sm whitespace-pre-wrap">
-          {content.substring(lastIndex)}
-        </p>
-      )
-    }
-
-    // If no code blocks, just render as plain text
-    if (parts.length === 0) {
-      parts.push(
-        <p key="text-0" className="text-sm whitespace-pre-wrap">
-          {content}
-        </p>
-      )
-    }
-
-    return <div>{parts}</div>
-  }
-
   return (
     <div className="flex flex-col h-screen max-w-4xl mx-auto relative">
       {/* Messages - Scrollable Area */}
       <div className="flex-1 overflow-hidden pb-4">
         <ScrollArea className="h-full">
-          <div className="p-4 space-y-4">
+          <div className="p-4 space-y-4" key={`messages-container-${messages.length}`}>
             {messages.map((message) => (
-              <div
+              <MessageItem
                 key={message.id}
-                className={`flex items-start gap-3 group ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
-              >
-                <Avatar className="h-8 w-8 flex-shrink-0">
-                  <AvatarFallback className={message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}>
-                    {message.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-                  </AvatarFallback>
-                </Avatar>
-                <div
-                  className={`max-w-[80%] px-4 py-3 rounded-2xl relative ${
-                    message.role === 'user'
-                      ? 'bg-primary text-primary-foreground rounded-br-md'
-                      : 'bg-muted rounded-bl-md'
-                  }`}
-                >
-                  {renderMessageContent(message.content, message.id, message.role)}
-                  
-                  {/* Action buttons for assistant messages */}
-                  {message.role === 'assistant' && (
-                    <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 px-2"
-                        onClick={() => copyToClipboard(message.content)}
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className={`h-6 px-2 ${message.liked ? 'text-green-500' : ''}`}
-                        onClick={() => handleLike(message.id)}
-                      >
-                        <ThumbsUp className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className={`h-6 px-2 ${message.disliked ? 'text-red-500' : ''}`}
-                        onClick={() => handleDislike(message.id)}
-                      >
-                        <ThumbsDown className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
+                message={message}
+                onLike={handleLike}
+                onDislike={handleDislike}
+                onCopy={copyToClipboard}
+              />
             ))}
             {isLoading && (
               <div className="flex items-start gap-3">
@@ -601,7 +537,6 @@ export default function Chat0UIInterface() {
                   <SelectItem value="gpt">GPT</SelectItem>
                   <SelectItem value="gemini">Gemini</SelectItem>
                   <SelectItem value="claude">Claude</SelectItem>
-                  <SelectItem value="zai">Z.AI</SelectItem>
                   <SelectItem value="openrouter">OpenRouter</SelectItem>
                 </SelectContent>
               </Select>

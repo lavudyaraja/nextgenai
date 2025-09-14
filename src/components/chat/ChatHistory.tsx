@@ -52,11 +52,13 @@ import { Badge } from '@/components/ui/badge'
 import { useRouter } from 'next/navigation'
 import { formatTime, formatRelativeTime } from '@/lib/conversation-manager'
 import { type ConversationWithMessages } from '@/lib/database-service'
+import { useAuth } from '@/contexts/auth-context' // Import useAuth
 
 type SortOption = 'newest' | 'oldest' | 'title' | 'activity'
 
 export function ChatHistory() {
   const router = useRouter()
+  const { user } = useAuth() // Get the current user from auth context
   const [conversations, setConversations] = useState<ConversationWithMessages[]>([])
   const [filteredConversations, setFilteredConversations] = useState<ConversationWithMessages[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -64,6 +66,7 @@ export function ChatHistory() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false) // New state for delete all dialog
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -73,8 +76,20 @@ export function ChatHistory() {
       setLoading(true)
       setError(null)
       
+      // Prepare headers with user ID
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+      
+      // Add user ID to headers if available
+      if (user?.id) {
+        headers['x-user-id'] = user.id
+      }
+      
       // Use the API to get conversations
-      const response = await fetch('/api/conversations')
+      const response = await fetch('/api/conversations', {
+        headers
+      })
       const data = await response.json()
       
       const conversationsArray = Array.isArray(data) ? data : []
@@ -101,7 +116,7 @@ export function ChatHistory() {
     return () => {
       window.removeEventListener('chatHistoryUpdated', handleConversationUpdate)
     }
-  }, [])
+  }, [user?.id]) // Add user.id to dependencies
 
   // Sort conversations
   const sortConversations = (convs: ConversationWithMessages[], sortOption: SortOption) => {
@@ -145,9 +160,19 @@ export function ChatHistory() {
 
   const handleNewChat = async () => {
     try {
+      // Prepare headers with user ID
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+      
+      // Add user ID to headers if available
+      if (user?.id) {
+        headers['x-user-id'] = user.id
+      }
+      
       const response = await fetch('/api/conversations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ title: 'New Chat' })
       })
 
@@ -168,8 +193,17 @@ export function ChatHistory() {
   const handleDeleteConversation = async (conversationId: string) => {
     setDeleting(true)
     try {
+      // Prepare headers with user ID
+      const headers: Record<string, string> = {}
+      
+      // Add user ID to headers if available
+      if (user?.id) {
+        headers['x-user-id'] = user.id
+      }
+      
       const response = await fetch(`/api/conversations/${conversationId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers
       })
 
       if (!response.ok) throw new Error('Failed to delete conversation')
@@ -222,6 +256,68 @@ export function ChatHistory() {
     }
   }
 
+  const handleDeleteAllConversations = async () => {
+    setDeleting(true)
+    try {
+      // Prepare headers with user ID
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+      
+      // Add user ID to headers if available
+      if (user?.id) {
+        headers['x-user-id'] = user.id
+      }
+      
+      // Delete all conversations using the bulk delete API
+      const response = await fetch('/api/conversations', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action: 'deleteAll' })
+      })
+
+      // Check if response is OK and has content
+      if (response.ok) {
+        const text = await response.text();
+        if (text) {
+          try {
+            const data = JSON.parse(text);
+            console.log('Delete all response:', data);
+          } catch (parseError) {
+            console.error('Failed to parse JSON response:', parseError);
+            console.log('Response text was:', text);
+          }
+        }
+        // Clear local state regardless of response parsing
+        setConversations([])
+        setFilteredConversations([])
+        console.log('All conversations deleted successfully')
+      } else {
+        // Try to parse error response
+        const text = await response.text();
+        let errorMessage = 'Failed to delete all conversations';
+        if (text) {
+          try {
+            const errorData = JSON.parse(text);
+            errorMessage = errorData.error || errorMessage;
+          } catch (parseError) {
+            console.error('Failed to parse error response:', parseError);
+            errorMessage = text;
+          }
+        }
+        throw new Error(errorMessage);
+      }
+    } catch (err) {
+      console.error('Failed to delete all conversations:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete all conversations')
+    } finally {
+      setDeleting(false)
+      setDeleteAllDialogOpen(false)
+      // Refresh conversations to ensure UI is in sync
+      fetchConversations()
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col h-full items-center justify-center">
@@ -260,10 +356,22 @@ export function ChatHistory() {
             Manage and browse your {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <Button onClick={handleNewChat} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          New Chat
-        </Button>
+        <div className="flex items-center gap-2">
+          {conversations.length > 0 && (
+            <Button 
+              variant="destructive" 
+              onClick={() => setDeleteAllDialogOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete All
+            </Button>
+          )}
+          <Button onClick={handleNewChat} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            New Chat
+          </Button>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -510,6 +618,39 @@ export function ChatHistory() {
                 <>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete All Confirmation Dialog */}
+      <AlertDialog open={deleteAllDialogOpen} onOpenChange={setDeleteAllDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete All Conversations</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete ALL conversations? This action cannot be undone 
+              and will permanently remove all your chat history.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAllConversations}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete All
                 </>
               )}
             </AlertDialogAction>
