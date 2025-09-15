@@ -12,11 +12,23 @@ import {
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
-  DropdownMenuSubTrigger
+  DropdownMenuSubTrigger,
+  DropdownMenuShortcut
 } from '@/components/ui/dropdown-menu'
-import { LogOut, User, Settings, HelpCircle, ChevronRight } from 'lucide-react'
+import { 
+  LogOut, 
+  User, 
+  Settings, 
+  HelpCircle, 
+  ChevronRight, 
+  ExternalLink,
+  FileText,
+  Keyboard,
+  GitMerge,
+  Shield,
+  FileBadge
+} from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { ExternalLink } from 'lucide-react'
 
 export function UserProfile() {
   const { user, logout } = useAuth()
@@ -24,22 +36,16 @@ export function UserProfile() {
   const [isOpen, setIsOpen] = useState(false)
 
   const handleLogout = async () => {
-    await logout()
-    router.push('/login')
+    try {
+      await logout()
+      router.push('/login')
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
   }
 
-  const handleProfile = () => {
-    router.push('/dashboard/profile')
-  }
-
-  const handleSettings = () => {
-    router.push('/dashboard/settings')
-  }
-
-  // Handle Help section navigation - open in new tab
-  const openHelpLink = (path: string) => {
-    // Use router.push for client-side navigation within the same app
-    router.push(path);
+  const openInNewTab = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   if (!user) {
@@ -49,65 +55,64 @@ export function UserProfile() {
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={user.avatar || ''} alt={user.name} />
-            <AvatarFallback className="bg-primary text-primary-foreground">
+        <Button variant="ghost" className="relative h-9 w-9 rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+          <Avatar className="h-9 w-9 border-2 border-transparent group-hover:border-primary transition-colors">
+            <AvatarImage src={user.avatar || ''} alt={user.name || 'User'} />
+            <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
               {user.name?.charAt(0).toUpperCase() || 'U'}
             </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
-        <div className="flex items-center justify-start gap-2 p-2">
-          <div className="flex flex-col space-y-1 leading-none">
-            {user.name && <p className="font-medium text-sm">{user.name}</p>}
-            {user.email && (
-              <p className="w-[200px] truncate text-xs text-muted-foreground">
-                {user.email}
-              </p>
-            )}
-          </div>
-        </div>
-        <DropdownMenuItem onClick={handleProfile}>
+        <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
           <User className="mr-2 h-4 w-4" />
           <span>Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleSettings}>
+        <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
           <Settings className="mr-2 h-4 w-4" />
           <span>Settings</span>
+          <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        
-        {/* Help Submenu */}
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <HelpCircle className="mr-2 h-4 w-4" />
-            <span>Help</span>
+            <span>Help & Support</span>
+            {/* <ChevronRight className="ml-auto h-4 w-4" /> */}
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            <DropdownMenuItem onClick={() => openHelpLink('/userprofile/help/documents')}>
-              Documents
+          <DropdownMenuSubContent className="w-52">
+            <DropdownMenuItem onClick={() => router.push('/help/documents')}>
+              <FileText className="mr-2 h-4 w-4" />
+              <span>Documents</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openHelpLink('/userprofile/help/keyboard-shortcuts')}>
-              Keyboard Shortcuts
+            <DropdownMenuItem onClick={() => router.push('/help/keyboard-shortcuts')}>
+              <Keyboard className="mr-2 h-4 w-4" />
+              <span>Keyboard Shortcuts</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openHelpLink('/userprofile/help/privacy')}>
-              Privacy Policy
+            <DropdownMenuItem onClick={() => router.push('/help/release-notes')}>
+              <GitMerge className="mr-2 h-4 w-4" />
+              <span>Release Notes</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openHelpLink('/userprofile/help/release-notes')}>
-              Release Notes
+            <DropdownMenuSeparator />
+            {/* External links open in a new tab */}
+            <DropdownMenuItem onClick={() => openInNewTab('/help/privacy')}>
+              <Shield className="mr-2 h-4 w-4" />
+              <span>Privacy Policy</span>
+              <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openHelpLink('/userprofile/help/terms-policies')}>
-              Terms & Policies
+            <DropdownMenuItem onClick={() => openInNewTab('/help/terms-policies')}>
+              <FileBadge className="mr-2 h-4 w-4" />
+              <span>Terms & Policies</span>
+              <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
             </DropdownMenuItem>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
-        
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
+        <DropdownMenuItem onClick={handleLogout} className="text-red-500 focus:text-red-500 focus:bg-destructive/10">
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
+          <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

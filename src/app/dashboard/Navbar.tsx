@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { 
   Sheet, 
@@ -16,128 +16,119 @@ import {
   History, 
   Settings, 
   LogOut,
-  TestTube
+  TestTube,
+  Sparkles
 } from 'lucide-react'
-import { UserProfile } from './UserProfile' // Import UserProfile for mobile menu
+import { UserProfile } from './UserProfile'
 import { useAuth } from '@/contexts/auth-context'
 import { useRouter } from 'next/navigation'
 
+// Helper component for cleaner mobile navigation links
+const NavLink = ({ icon: Icon, text, onClick }: { icon: React.ElementType, text: string, onClick: () => void }) => (
+  <button
+    onClick={onClick}
+    className="flex items-center w-full p-3 text-base font-medium rounded-lg text-slate-300 group hover:bg-slate-800 hover:text-cyan-300 transition-all duration-200"
+  >
+    <Icon className="w-5 h-5 mr-3 text-slate-400 group-hover:text-cyan-400 transition-colors" />
+    <span>{text}</span>
+  </button>
+);
+
 export function Navbar() {
   const [open, setOpen] = useState(false)
-  const { user, logout } = useAuth()
+  const { logout } = useAuth()
   const router = useRouter()
 
-  const handleNewChat = () => {
-    // Create a new conversation and navigate to it
-    // const newConversation = createNewConversation()
-    // router.push(`/dashboard/chat-ui-interface?id=${newConversation.id}`)
+  const createNewChat = () => {
+    // This would typically involve an API call to create a new conversation
+    // For now, it just navigates to the base chat interface
+    router.push('/dashboard/chat-ui-interface')
     setOpen(false)
   }
-
-  const handleHistory = () => {
-    // Navigate to chat history
-    router.push('/dashboard/conversations')
+  
+  const navigateTo = (path: string) => {
+    router.push(path)
     setOpen(false)
   }
-
-const handleSettings = () => {
-  // default profile section open avvali ante ?section=profile add cheyali
-  router.push("/dashboard/settings?section=profile")
-  setOpen(false)
-}
 
   const handleLogout = async () => {
     await logout()
-    router.push('/login')
-    setOpen(false)
-  }
-
-  const handleTestResponsive = () => {
-    router.push('/dashboard/test-responsive')
-    setOpen(false)
+    navigateTo('/login')
   }
 
   return (
-    <header className="border-b p-4 sticky top-0 z-50 mobile-navbar">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Bot className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-semibold">AI Assistant</h1>
-        </div>
+    // Glassmorphism header with a neon bottom border
+    <header className="sticky top-0 z-50 w-full border-b bg-slate-900/80 border-cyan-500/20 backdrop-blur-lg">
+      <div className="container flex items-center justify-between h-16 px-4 mx-auto">
+        {/* Brand/Logo with Neon effect */}
+        <a href="/dashboard" className="flex items-center gap-3 group">
+          <Bot className="w-8 h-8 text-cyan-400 transition-transform duration-300 group-hover:rotate-12 group-hover:drop-shadow-[0_0_8px_rgba(0,255,255,0.7)]" />
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500 bg-clip-text text-transparent">
+            AI Assistant
+          </h1>
+        </a>
         
-        <div className="flex items-center gap-2">
-          {/* Mobile Navigation */}
-          <div className="flex md:hidden items-center gap-2">
-            <Sheet open={open} onOpenChange={setOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-                <SheetHeader>
-                  <SheetTitle className="flex items-center gap-2">
-                    <Bot className="h-6 w-6 text-primary" />
-                    AI Assistant
-                  </SheetTitle>
-                </SheetHeader>
-                <div className="flex flex-col gap-4 py-4">
-                  {/* User Profile in mobile menu */}
-                  <div className="pb-4 border-b">
-                    <UserProfile />
-                  </div>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="justify-start" 
-                    onClick={handleNewChat}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Chat
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="justify-start" 
-                    onClick={handleHistory}
-                  >
-                    <History className="h-4 w-4 mr-2" />
-                    Chat History
-                  </Button>
-                  
-                  {/* Test Responsive Button - Only shown in mobile menu */}
-                  <Button 
-                    variant="outline" 
-                    className="justify-start" 
-                    onClick={handleTestResponsive}
-                  >
-                    <TestTube className="h-4 w-4 mr-2" />
-                    Test Responsive
-                  </Button>
-                  
-                  <div className="border-t pt-4 mt-4">
-                    <Button 
-                      variant="outline" 
-                      className="justify-start w-full mb-2" 
-                      onClick={handleSettings}
-                    >
-                      <Settings className="h-4 w-4 mr-2" />
-                      Settings
-                    </Button>
-                    
-                    <Button 
-                      variant="outline" 
-                      className="justify-start w-full" 
+        {/* Desktop Navigation */}
+        <nav className="items-center hidden gap-4 md:flex">
+          {/* <Button 
+            variant="ghost" 
+            onClick={createNewChat} 
+            className="text-slate-300 hover:bg-cyan-500/10 hover:text-cyan-300"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            New Chat
+          </Button>
+          <Button 
+            variant="ghost" 
+            onClick={() => navigateTo('/dashboard/conversations')}
+            className="text-slate-300 hover:bg-cyan-500/10 hover:text-cyan-300"
+          >
+            <History className="w-4 h-4 mr-2" />
+            Chat History
+          </Button> */}
+          <UserProfile />
+        </nav>
+        
+        {/* Mobile Navigation Trigger */}
+        <div className="flex md:hidden">
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-cyan-400 hover:bg-cyan-500/10">
+                <Menu className="w-6 h-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent 
+              side="right" 
+              className="w-[300px] bg-slate-900/80 border-l border-cyan-500/30 text-white backdrop-blur-xl"
+            >
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-3 text-2xl bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
+                  <Sparkles className="w-6 h-6 text-purple-400" />
+                  Menu
+                </SheetTitle>
+              </SheetHeader>
+              <div className="flex flex-col h-full py-6">
+                <nav className="flex flex-col gap-2">
+                  <NavLink icon={Plus} text="New Chat" onClick={createNewChat} />
+                  <NavLink icon={History} text="Chat History" onClick={() => navigateTo('/dashboard/conversations')} />
+                  <NavLink icon={TestTube} text="Test Responsive" onClick={() => navigateTo('/dashboard/test-responsive')} />
+                </nav>
+
+                <div className="mt-auto">
+                  <div className="pt-6 border-t border-slate-700">
+                    <NavLink icon={Settings} text="Settings" onClick={() => navigateTo('/dashboard/settings?section=profile')} />
+                    <button
                       onClick={handleLogout}
+                      className="flex items-center w-full p-3 mt-2 text-base font-medium text-red-400 rounded-lg group hover:bg-red-500/10 hover:text-red-300 transition-all duration-200"
                     >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Logout
-                    </Button>
+                      <LogOut className="w-5 h-5 mr-3 text-red-400/80 group-hover:text-red-400 transition-colors" />
+                      <span>Logout</span>
+                    </button>
                   </div>
                 </div>
-              </SheetContent>
-            </Sheet>
-          </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>

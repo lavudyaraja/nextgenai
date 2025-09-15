@@ -26,14 +26,14 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "AI Assistant",
-    template: "%s | AI Assistant"
+    default: "Converstional AI",
+    template: "%s | Conversational Ai"
   },
-  description: "Advanced AI Assistant with multi-provider integration, real-time chat, and intelligent responses",
-  keywords: ["AI", "Assistant", "Chat", "OpenAI", "Claude", "Gemini", "Real-time"],
-  authors: [{ name: "AI Assistant Team" }],
-  creator: "AI Assistant",
-  publisher: "AI Assistant",
+  description: "Advanced Conversational Ai with multi-provider integration, real-time messaging, and intelligent responses",
+  keywords: ["Chat", "Messaging", "Real-time", "AI", "Assistant"],
+  authors: [{ name: "Conversational Ai Team" }],
+  creator: "Conversational Ai",
+  publisher: "Conversational Ai",
   formatDetection: {
     email: false,
     address: false,
@@ -57,14 +57,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    title: 'AI Assistant',
-    description: 'Advanced AI Assistant with multi-provider integration',
-    siteName: 'AI Assistant',
+    title: 'Chat Interface',
+    description: 'Advanced chat interface with multi-provider integration',
+    siteName: 'Chat Interface',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AI Assistant',
-    description: 'Advanced AI Assistant with multi-provider integration',
+    title: 'Chat Interface',
+    description: 'Advanced chat interface with multi-provider integration',
   },
 };
 
@@ -104,7 +104,6 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://api.openai.com" />
         <link rel="dns-prefetch" href="https://api.anthropic.com" />
         <link rel="dns-prefetch" href="https://generativelanguage.googleapis.com" />
-        <link rel="dns-prefetch" href="https://api.z.ai" />
         <link rel="dns-prefetch" href="https://openrouter.ai" />
         
         {/* Resource hints */}
@@ -119,11 +118,11 @@ export default function RootLayout({
         
         {/* Favicon and app icons */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        {/* <link rel="icon" href="/icon.svg" type="image/svg+xml" /> */}
+        {/* <link rel="apple-touch-icon" href="/apple-touch-icon.png" /> */}
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-slate-900`}
         suppressHydrationWarning
       >
         <PerformanceMonitor />

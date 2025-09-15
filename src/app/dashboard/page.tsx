@@ -3,7 +3,7 @@ import ChatPage from '@/app/dashboard/chat-ui-interface/page'
 
 const page = () => {
   return (
-    <div className="h-full">
+    <div className=" h-full">
       <ChatPage />
     </div>
   )

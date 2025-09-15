@@ -312,7 +312,7 @@ export const getAllConversations = async (): Promise<ConversationWithMessages[]>
 // Function to get messages by conversation ID with better error handling
 export const getMessagesByConversationId = async (conversationId: string): Promise<Message[]> => {
   if (!conversationId) {
-    return getWelcomeMessage()
+    return []
   }
 
   try {
@@ -327,11 +327,11 @@ export const getMessagesByConversationId = async (conversationId: string): Promi
       }))
     }
     
-    // Return welcome message for empty or new conversations
-    return getWelcomeMessage()
+    // Return empty array for empty or new conversations
+    return []
   } catch (error) {
     console.error('Failed to get messages for conversation:', conversationId, error)
-    return getWelcomeMessage()
+    return []
   }
 }
 
