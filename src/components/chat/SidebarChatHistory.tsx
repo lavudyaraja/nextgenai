@@ -33,6 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { toast } from 'sonner'
 
 interface ChatItem {
   id: string
@@ -66,6 +67,8 @@ export function SidebarChatHistory() {
       if (user?.id) {
         headers['x-user-id'] = user.id
       }
+      
+      console.log('Fetching conversations with user ID:', user?.id)
       
       // Use the API to get conversations
       const response = await fetch('/api/conversations', {
@@ -180,6 +183,7 @@ export function SidebarChatHistory() {
   const handleDelete = async (conversationId: string) => {
     try {
       console.log('Deleting conversation:', conversationId)
+      console.log('Current user ID:', user?.id)
       
       // Prepare headers with user ID
       const headers: Record<string, string> = {
@@ -196,9 +200,12 @@ export function SidebarChatHistory() {
         headers
       })
 
+      console.log('Delete response status:', response.status)
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+        const errorMessage = errorData.error || `HTTP error! status: ${response.status}`
+        throw new Error(errorMessage)
       }
 
       // Refresh the conversations list
@@ -208,10 +215,12 @@ export function SidebarChatHistory() {
       window.dispatchEvent(new Event('chatHistoryUpdated'))
       
       console.log('Conversation deleted successfully')
+      toast.success('Conversation deleted successfully')
     } catch (error) {
       console.error('Failed to delete conversation:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete conversation'
       setError(errorMessage)
+      toast.error(`Failed to delete conversation: ${errorMessage}`)
       
       // Show error to user for a few seconds
       setTimeout(() => {

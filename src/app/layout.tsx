@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/contexts";
 import { Layout } from "@/components/layout";
 import { Suspense } from "react";
@@ -132,6 +133,7 @@ export default function RootLayout({
               {children}
             </Layout>
             <Toaster />
+            <SonnerToaster />
           </AuthProvider>
         </Suspense>
       </body>

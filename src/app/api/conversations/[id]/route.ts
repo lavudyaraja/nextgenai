@@ -86,7 +86,19 @@ export async function DELETE(
       )
     }
     
-    // Check if conversation exists
+    // Get user ID from request for authentication
+    const userId = await getUserIdFromRequest(request)
+    console.log('User ID for delete operation:', userId)
+    
+    if (!userId) {
+      console.log('Unauthorized delete attempt - no user ID')
+      return NextResponse.json(
+        { error: 'Unauthorized - User ID required' },
+        { status: 401 }
+      )
+    }
+    
+    // Check if conversation exists and belongs to the user
     const existingConversation = await db.conversation.findUnique({
       where: { id }
     })
@@ -96,6 +108,15 @@ export async function DELETE(
       return NextResponse.json(
         { error: 'Conversation not found' },
         { status: 404 }
+      )
+    }
+    
+    // Check if the conversation belongs to the current user
+    if (existingConversation.userId !== userId) {
+      console.log(`User ${userId} attempted to delete conversation ${id} belonging to user ${existingConversation.userId}`)
+      return NextResponse.json(
+        { error: 'Forbidden - You do not have permission to delete this conversation' },
+        { status: 403 }
       )
     }
     
