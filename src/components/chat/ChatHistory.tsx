@@ -13,8 +13,6 @@ import {
   Plus, 
   Trash2, 
   Download,
-  SortAsc,
-  SortDesc,
   Filter,
   Clock,
   Calendar,
@@ -78,19 +76,28 @@ export function ChatHistory() {
       setLoading(true)
       setError(null)
       
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
+      // Check if user is authenticated
+      if (!user?.id) {
+        console.log('No authenticated user')
+        setConversations([])
+        setLoading(false)
+        return
       }
       
-      if (user?.id) {
-        headers['x-user-id'] = user.id
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-user-id': user.id
       }
       
       const response = await fetch('/api/conversations', {
         headers
       })
-      const data = await response.json()
       
+      if (!response.ok) {
+        throw new Error(`Failed to fetch: ${response.status}`)
+      }
+      
+      const data = await response.json()
       const conversationsArray = Array.isArray(data) ? data : []
       setConversations(conversationsArray)
       console.log('Fetched conversations:', conversationsArray.length)
@@ -104,10 +111,17 @@ export function ChatHistory() {
   }
 
   useEffect(() => {
-    fetchConversations()
+    if (user?.id) {
+      fetchConversations()
+    } else {
+      setConversations([])
+      setLoading(false)
+    }
 
     const handleConversationUpdate = () => {
-      fetchConversations()
+      if (user?.id) {
+        fetchConversations()
+      }
     }
 
     window.addEventListener('chatHistoryUpdated', handleConversationUpdate)
@@ -155,12 +169,14 @@ export function ChatHistory() {
 
   const handleNewChat = async () => {
     try {
+      if (!user?.id) {
+        setError('You must be logged in to create a chat')
+        return
+      }
+
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-      }
-      
-      if (user?.id) {
-        headers['x-user-id'] = user.id
+        'x-user-id': user.id
       }
       
       const response = await fetch('/api/conversations', {
@@ -174,7 +190,9 @@ export function ChatHistory() {
       const newConversation = await response.json()
       router.push(`/dashboard/chat-ui-interface?id=${newConversation.id}`)
       
-      fetchConversations()
+      // Refresh conversations
+      await fetchConversations()
+      window.dispatchEvent(new Event('chatHistoryUpdated'))
     } catch (err) {
       console.error('Failed to create new conversation:', err)
       router.push('/dashboard/chat-ui-interface')
@@ -182,26 +200,36 @@ export function ChatHistory() {
   }
 
   const handleDeleteConversation = async (conversationId: string) => {
+    if (!user?.id) {
+      setError('You must be logged in to delete conversations')
+      return
+    }
+
     setDeleting(true)
     try {
-      const headers: Record<string, string> = {}
-      
-      if (user?.id) {
-        headers['x-user-id'] = user.id
-      }
-      
       const response = await fetch(`/api/conversations/${conversationId}`, {
         method: 'DELETE',
-        headers
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id
+        }
       })
 
-      if (!response.ok) throw new Error('Failed to delete conversation')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to delete conversation')
+      }
 
+      // Update local state
       setConversations(prev => prev.filter(conv => conv.id !== conversationId))
+      
+      // Notify other components
+      window.dispatchEvent(new Event('chatHistoryUpdated'))
+      
       console.log('Conversation deleted successfully')
     } catch (err) {
       console.error('Failed to delete conversation:', err)
-      setError('Failed to delete conversation')
+      setError(err instanceof Error ? err.message : 'Failed to delete conversation')
     } finally {
       setDeleting(false)
       setDeleteDialogOpen(false)
@@ -244,64 +272,49 @@ export function ChatHistory() {
   }
 
   const handleDeleteAllConversations = async () => {
+    if (!user?.id) {
+      setError('You must be logged in to delete conversations')
+      return
+    }
+
     setDeleting(true)
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      }
-      
-      if (user?.id) {
-        headers['x-user-id'] = user.id
-      }
-      
-      const response = await fetch('/api/conversations', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ action: 'deleteAll' })
-      })
+      // Delete conversations one by one
+      const deletePromises = conversations.map(conv => 
+        fetch(`/api/conversations/${conv.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': user.id
+          }
+        })
+      )
 
-      if (response.ok) {
-        const text = await response.text();
-        if (text) {
-          try {
-            const data = JSON.parse(text);
-            console.log('Delete all response:', data);
-          } catch (parseError) {
-            console.error('Failed to parse JSON response:', parseError);
-            console.log('Response text was:', text);
-          }
-        }
-        setConversations([])
-        setFilteredConversations([])
-        console.log('All conversations deleted successfully')
-      } else {
-        const text = await response.text();
-        let errorMessage = 'Failed to delete all conversations';
-        if (text) {
-          try {
-            const errorData = JSON.parse(text);
-            errorMessage = errorData.error || errorMessage;
-          } catch (parseError) {
-            console.error('Failed to parse error response:', parseError);
-            errorMessage = text;
-          }
-        }
-        throw new Error(errorMessage);
-      }
+      await Promise.all(deletePromises)
+      
+      // Clear local state
+      setConversations([])
+      setFilteredConversations([])
+      
+      // Notify other components
+      window.dispatchEvent(new Event('chatHistoryUpdated'))
+      
+      console.log('All conversations deleted successfully')
     } catch (err) {
       console.error('Failed to delete all conversations:', err)
       setError(err instanceof Error ? err.message : 'Failed to delete all conversations')
+      
+      // Refresh to get current state
+      await fetchConversations()
     } finally {
       setDeleting(false)
       setDeleteAllDialogOpen(false)
-      fetchConversations()
     }
   }
 
   if (loading) {
     return (
       <div className="flex flex-col h-full items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
-        {/* Animated Background */}
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/10 via-transparent to-purple-600/10"></div>
         <div className="absolute top-20 left-20 w-32 h-32 bg-cyan-500/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-20 right-20 w-40 h-40 bg-purple-500/15 rounded-full blur-3xl animate-pulse delay-1000"></div>
@@ -316,6 +329,15 @@ export function ChatHistory() {
           </p>
           <p className="text-sm text-slate-400">Please wait while we fetch your chat history</p>
         </div>
+      </div>
+    )
+  }
+
+  if (!user?.id) {
+    return (
+      <div className="flex flex-col h-full items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <MessageCircle className="h-16 w-16 text-slate-500 mb-4" />
+        <p className="text-xl text-slate-400">Please log in to view your chat history</p>
       </div>
     )
   }
@@ -352,20 +374,6 @@ export function ChatHistory() {
       <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/5 via-transparent to-purple-600/5"></div>
       <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl animate-pulse"></div>
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/8 rounded-full blur-3xl animate-pulse delay-1000"></div>
-      <div className="absolute top-1/2 right-1/3 w-48 h-48 bg-pink-500/6 rounded-full blur-3xl animate-pulse delay-2000"></div>
-      
-      {/* Floating Particles */}
-      <div className="absolute top-20 left-20 w-2 h-2 bg-cyan-400/60 rounded-full animate-bounce"></div>
-      <div className="absolute top-40 right-32 w-1 h-1 bg-purple-400/60 rounded-full animate-ping"></div>
-      <div className="absolute bottom-32 left-16 w-3 h-3 bg-pink-400/40 rounded-full animate-pulse"></div>
-      
-      {/* Grid Pattern Overlay */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, rgba(56, 189, 248, 0.3) 1px, transparent 0)`,
-          backgroundSize: '30px 30px'
-        }}></div>
-      </div>
 
       {/* Content */}
       <div className="relative z-10 flex flex-col h-full p-6">
@@ -385,21 +393,20 @@ export function ChatHistory() {
               <Button 
                 variant="destructive" 
                 onClick={() => setDeleteAllDialogOpen(true)}
+                disabled={deleting}
                 className="relative group bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 border-0 shadow-lg hover:shadow-red-500/25 transition-all duration-300 hover:scale-105"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-red-500 via-pink-500 to-red-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-md"></div>
-                <Trash2 className="h-4 w-4 mr-2 relative z-10" />
-                <span className="relative z-10">Delete All</span>
+                <Trash2 className="h-4 w-4 mr-2" />
+                <span>Delete All</span>
               </Button>
             )}
             <Button 
               onClick={handleNewChat} 
               className="relative group bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 border-0 shadow-lg hover:shadow-cyan-500/25 transition-all duration-300 hover:scale-105"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-blue-500 to-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-md"></div>
-              <Plus className="h-4 w-4 mr-2 relative z-10 group-hover:rotate-90 transition-transform duration-300" />
-              <span className="relative z-10">New Chat</span>
-              <Sparkles className="h-3 w-3 ml-2 relative z-10 opacity-60 group-hover:opacity-100 group-hover:rotate-12 transition-all duration-300" />
+              <Plus className="h-4 w-4 mr-2" />
+              <span>New Chat</span>
+              <Sparkles className="h-3 w-3 ml-2" />
             </Button>
           </div>
         </div>
@@ -410,11 +417,10 @@ export function ChatHistory() {
             <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               placeholder="Search conversations and messages..."
-              className="pl-12 bg-slate-800/50 border-slate-700/50 text-slate-100 placeholder-slate-400 focus:border-cyan-500/50 focus:ring-cyan-500/20 backdrop-blur-sm transition-all duration-300 hover:border-slate-600/50"
+              className="pl-12 bg-slate-800/50 border-slate-700/50 text-slate-100 placeholder-slate-400 focus:border-cyan-500/50 focus:ring-cyan-500/20"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <div className="absolute inset-0 rounded-md bg-gradient-to-r from-cyan-500/0 via-cyan-500/5 to-blue-500/0 opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
           </div>
           
           <DropdownMenu>
@@ -422,40 +428,21 @@ export function ChatHistory() {
               <Button 
                 variant="outline" 
                 size="icon"
-                className="bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-700/50 hover:border-cyan-500/50 hover:text-cyan-400 transition-all duration-300 hover:scale-110"
+                className="bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-700/50"
               >
                 <Filter className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent 
-              align="end" 
-              className="bg-slate-800/95 border-slate-700/50 text-slate-200 backdrop-blur-sm"
-            >
-              <DropdownMenuItem 
-                onClick={() => setSortBy('newest')}
-                className="hover:bg-slate-700/50 focus:bg-slate-700/50 hover:text-cyan-400"
-              >
+            <DropdownMenuContent align="end" className="bg-slate-800/95 border-slate-700/50">
+              <DropdownMenuItem onClick={() => setSortBy('newest')}>
                 <Clock className="h-4 w-4 mr-2" />
                 Newest First
               </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => setSortBy('oldest')}
-                className="hover:bg-slate-700/50 focus:bg-slate-700/50 hover:text-cyan-400"
-              >
+              <DropdownMenuItem onClick={() => setSortBy('oldest')}>
                 <Calendar className="h-4 w-4 mr-2" />
                 Oldest First
               </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => setSortBy('title')}
-                className="hover:bg-slate-700/50 focus:bg-slate-700/50 hover:text-cyan-400"
-              >
-                <SortAsc className="h-4 w-4 mr-2" />
-                By Title
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => setSortBy('activity')}
-                className="hover:bg-slate-700/50 focus:bg-slate-700/50 hover:text-cyan-400"
-              >
+              <DropdownMenuItem onClick={() => setSortBy('activity')}>
                 <MessageCircle className="h-4 w-4 mr-2" />
                 Most Active
               </DropdownMenuItem>
@@ -463,196 +450,112 @@ export function ChatHistory() {
           </DropdownMenu>
         </div>
 
-        {/* Results Summary */}
-        {searchTerm && (
-          <div className="mb-4">
-            <p className="text-sm text-slate-400">
-              Found <span className="text-cyan-400 font-medium">{filteredConversations.length}</span> conversation{filteredConversations.length !== 1 ? 's' : ''} 
-              matching "<span className="text-purple-400 font-medium">{searchTerm}</span>"
-            </p>
-          </div>
-        )}
-
         {/* Conversations List */}
-        <Card className="flex-1 overflow-hidden bg-slate-800/30 border-slate-700/50 backdrop-blur-sm shadow-xl">
-          <CardHeader className="border-b border-slate-700/50 bg-slate-800/20">
+        <Card className="flex-1 overflow-hidden bg-slate-800/30 border-slate-700/50">
+          <CardHeader className="border-b border-slate-700/50">
             <CardTitle className="flex items-center justify-between text-slate-200">
               <span className="flex items-center gap-2">
                 <MessageCircle className="h-5 w-5 text-cyan-400" />
                 Recent Conversations
               </span>
-              <Badge 
-                variant="secondary"
-                className="bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-300 border-cyan-500/30"
-              >
+              <Badge variant="secondary" className="bg-gradient-to-r from-cyan-500/20 to-purple-500/20">
                 {filteredConversations.length}
               </Badge>
             </CardTitle>
-            <CardDescription className="text-slate-400">
-              Click on any conversation to continue chatting
-            </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             {filteredConversations.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-[calc(100vh-400px)] p-8 text-center">
-                <div className="relative mb-6">
-                  <MessageCircle className="h-20 w-20 text-slate-500 mx-auto" />
-                  <div className="absolute inset-0 bg-cyan-400/10 rounded-full blur-2xl animate-pulse"></div>
-                </div>
-                <h3 className="text-2xl font-medium mb-3 bg-gradient-to-r from-slate-300 to-slate-400 bg-clip-text text-transparent">
+              <div className="flex flex-col items-center justify-center h-96 p-8 text-center">
+                <MessageCircle className="h-20 w-20 text-slate-500 mx-auto mb-6" />
+                <h3 className="text-2xl font-medium text-slate-300 mb-3">
                   {searchTerm ? 'No matching conversations' : 'No conversations yet'}
                 </h3>
-                <p className="text-slate-400 mb-8 max-w-md leading-relaxed">
+                <p className="text-slate-400 mb-8">
                   {searchTerm 
-                    ? 'Try adjusting your search terms or browse all conversations'
-                    : 'Start your first conversation by clicking the "New Chat" button above'
+                    ? 'Try adjusting your search terms'
+                    : 'Start your first conversation by clicking "New Chat"'
                   }
                 </p>
-                {searchTerm ? (
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setSearchTerm('')}
-                    className="bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-700/50 hover:border-cyan-500/50 hover:text-cyan-400"
-                  >
-                    <Search className="h-4 w-4 mr-2" />
-                    Clear Search
-                  </Button>
-                ) : (
-                  <Button 
-                    onClick={handleNewChat}
-                    className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 border-0 shadow-lg hover:shadow-cyan-500/25"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Start New Chat
-                  </Button>
-                )}
+                <Button onClick={searchTerm ? () => setSearchTerm('') : handleNewChat}>
+                  {searchTerm ? 'Clear Search' : 'Start New Chat'}
+                </Button>
               </div>
             ) : (
               <ScrollArea className="h-[calc(100vh-300px)]">
                 <div className="divide-y divide-slate-700/30">
-                  {filteredConversations.map((conversation, index) => {
-                    const lastMessage = conversation.messages.length > 0 
-                      ? conversation.messages[conversation.messages.length - 1] 
-                      : null
+                  {filteredConversations.map((conversation) => {
+                    const lastMessage = conversation.messages[conversation.messages.length - 1]
                     const messageCount = conversation.messages.length
 
                     return (
                       <div
                         key={conversation.id}
-                        className="p-6 hover:bg-slate-700/20 cursor-pointer transition-all duration-300 group relative overflow-hidden border-l-2 border-transparent hover:border-cyan-500/50"
+                        className="p-6 hover:bg-slate-700/20 cursor-pointer transition-all group"
                         onClick={() => router.push(`/dashboard/chat-ui-interface?id=${conversation.id}`)}
                       >
-                        {/* Hover Glow Effect */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/5 to-purple-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                        
-                        <div className="flex items-start justify-between relative z-10">
-                          <div className="flex items-start gap-4 flex-1 min-w-0">
-                            <div className="relative">
-                              <Avatar className="h-12 w-12 bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-slate-600/50">
-                                <AvatarFallback className="bg-transparent">
-                                  <MessageCircle className="h-6 w-6 text-cyan-400" />
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="absolute inset-0 bg-cyan-400/20 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                            </div>
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-4 flex-1">
+                            <Avatar className="h-12 w-12">
+                              <AvatarFallback>
+                                <MessageCircle className="h-6 w-6 text-cyan-400" />
+                              </AvatarFallback>
+                            </Avatar>
                             
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1">
                               <div className="flex items-baseline justify-between mb-2">
-                                <h3 className="font-medium truncate text-slate-200 group-hover:text-white transition-colors duration-300">
+                                <h3 className="font-medium text-slate-200">
                                   {conversation.title || `Chat from ${formatTime(new Date(conversation.createdAt))}`}
                                 </h3>
                                 <div className="flex items-center gap-3">
-                                  <Badge 
-                                    variant="outline" 
-                                    className="text-xs bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border-cyan-500/30 text-cyan-300"
-                                  >
+                                  <Badge variant="outline" className="text-xs">
                                     <Zap className="h-3 w-3 mr-1" />
-                                    {messageCount} message{messageCount !== 1 ? 's' : ''}
+                                    {messageCount}
                                   </Badge>
-                                  <span className="text-xs text-slate-400 whitespace-nowrap group-hover:text-slate-300 transition-colors duration-300">
+                                  <span className="text-xs text-slate-400">
                                     {formatRelativeTime(new Date(conversation.updatedAt))}
                                   </span>
                                 </div>
                               </div>
                               
                               {lastMessage && (
-                                <p className="text-sm text-slate-400 truncate group-hover:text-slate-300 transition-colors duration-300">
+                                <p className="text-sm text-slate-400 truncate">
                                   <span className="font-medium text-cyan-400">
                                     {lastMessage.role === 'user' ? 'You: ' : 'AI: '}
                                   </span>
-                                  {lastMessage.content.length > 100 
-                                    ? lastMessage.content.substring(0, 100) + '...' 
-                                    : lastMessage.content}
+                                  {lastMessage.content.substring(0, 100)}
+                                  {lastMessage.content.length > 100 ? '...' : ''}
                                 </p>
                               )}
-                              
-                              <div className="flex items-center gap-2 mt-3 text-xs text-slate-500 group-hover:text-slate-400 transition-colors duration-300">
-                                <Calendar className="h-3 w-3" />
-                                Created {formatTime(new Date(conversation.createdAt))}
-                                {conversation.updatedAt !== conversation.createdAt && (
-                                  <>
-                                    <span>•</span>
-                                    <Clock className="h-3 w-3" />
-                                    Updated {formatTime(new Date(conversation.updatedAt))}
-                                  </>
-                                )}
-                              </div>
                             </div>
                           </div>
                           
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <div className="opacity-0 group-hover:opacity-100">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button 
                                   variant="ghost" 
                                   size="icon" 
-                                  className="h-8 w-8 text-slate-400 hover:text-cyan-400 hover:bg-slate-700/50"
+                                  className="h-8 w-8"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent 
-                                align="end" 
-                                className="w-48 bg-slate-800/95 border-slate-700/50 text-slate-200 backdrop-blur-sm"
-                              >
-                                <DropdownMenuItem 
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    console.log('Pin conversation:', conversation.id)
-                                  }}
-                                  className="hover:bg-slate-700/50 focus:bg-slate-700/50 hover:text-cyan-400"
-                                >
-                                  <Pin className="h-4 w-4 mr-2" />
-                                  Pin Conversation
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleExportConversation(conversation)
-                                  }}
-                                  className="hover:bg-slate-700/50 focus:bg-slate-700/50 hover:text-cyan-400"
-                                >
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleExportConversation(conversation)
+                                }}>
                                   <Download className="h-4 w-4 mr-2" />
                                   Export as JSON
                                 </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    console.log('Archive conversation:', conversation.id)
-                                  }}
-                                  className="hover:bg-slate-700/50 focus:bg-slate-700/50 hover:text-cyan-400"
-                                >
-                                  <Archive className="h-4 w-4 mr-2" />
-                                  Archive
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator className="bg-slate-700/50" />
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem 
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     openDeleteDialog(conversation.id)
                                   }}
-                                  className="hover:bg-red-500/20 focus:bg-red-500/20 text-red-400 hover:text-red-300"
+                                  className="text-red-400"
                                 >
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Delete
@@ -673,16 +576,15 @@ export function ChatHistory() {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-slate-800/90 border-slate-700 text-slate-200 backdrop-blur-sm">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Conversation</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
-              Are you sure you want to delete this conversation? This action cannot be undone 
-              and will permanently remove all messages in this chat.
+            <AlertDialogDescription>
+              Are you sure you want to delete this conversation? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-transparent border-slate-600 hover:bg-slate-700" disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (conversationToDelete) {
@@ -692,17 +594,8 @@ export function ChatHistory() {
               disabled={deleting}
               className="bg-red-600 hover:bg-red-700"
             >
-              {deleting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </>
-              )}
+              {deleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -710,32 +603,22 @@ export function ChatHistory() {
 
       {/* Delete All Confirmation Dialog */}
       <AlertDialog open={deleteAllDialogOpen} onOpenChange={setDeleteAllDialogOpen}>
-        <AlertDialogContent className="bg-slate-800/90 border-slate-700 text-slate-200 backdrop-blur-sm">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete All Conversations</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
-              Are you sure you want to delete ALL conversations? This action cannot be undone 
-              and will permanently remove all your chat history.
+            <AlertDialogDescription>
+              Are you sure you want to delete ALL {conversations.length} conversations? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-transparent border-slate-600 hover:bg-slate-700" disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteAllConversations}
               disabled={deleting}
               className="bg-red-600 hover:bg-red-700"
             >
-              {deleting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete All
-                </>
-              )}
+              {deleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Delete All
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
