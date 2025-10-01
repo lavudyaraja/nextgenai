@@ -117,18 +117,39 @@ export function SidebarChatHistory() {
   useEffect(() => {
     fetchConversations()
     
-    // Listen for chat history updates
+    // Listen for chat history updates with multiple event listeners for reliability
     const handleChatHistoryUpdate = () => {
       console.log('Sidebar received chatHistoryUpdated event')
-      fetchConversations()
+      // Add a small delay to ensure database is updated
+      setTimeout(() => {
+        fetchConversations()
+      }, 100)
+    }
+    
+    // Also listen for storage events which might indicate changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'chatHistoryUpdate') {
+        console.log('Sidebar received storage event for chat history update')
+        fetchConversations()
+      }
     }
     
     window.addEventListener('chatHistoryUpdated', handleChatHistoryUpdate)
+    window.addEventListener('storage', handleStorageChange)
+    
+    // Polling as a fallback for deployed environments
+    const pollInterval = setInterval(() => {
+      if (user?.id && !loading && !refreshing) {
+        fetchConversations()
+      }
+    }, 10000) // Poll every 10 seconds
     
     return () => {
       window.removeEventListener('chatHistoryUpdated', handleChatHistoryUpdate)
+      window.removeEventListener('storage', handleStorageChange)
+      clearInterval(pollInterval)
     }
-  }, [fetchConversations])
+  }, [fetchConversations, user?.id, loading, refreshing])
 
   // Auto-refresh when tab becomes visible
   useEffect(() => {

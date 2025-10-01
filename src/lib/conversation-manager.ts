@@ -53,7 +53,7 @@ export const createNewConversation = async (title?: string): Promise<{ id: strin
   if (isBrowser) {
     // Use API call in browser environment
     try {
-      // Get user ID from localStorage (in a real app, you might want to use a more secure method)
+      // Get user ID from auth context
       let userId = null
       try {
         const storedUser = localStorage.getItem('user')
@@ -79,7 +79,7 @@ export const createNewConversation = async (title?: string): Promise<{ id: strin
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': userId || 'default-user'
+          'x-user-id': userId
         },
         body: JSON.stringify({
           title: conversationTitle
@@ -93,9 +93,13 @@ export const createNewConversation = async (title?: string): Promise<{ id: strin
       
       const conversation = await response.json()
       console.log('Created conversation via API:', conversation.id)
-      // Dispatch event to update sidebar
+      // Dispatch event to update sidebar with multiple triggers for reliability
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('chatHistoryUpdated'))
+        setTimeout(() => window.dispatchEvent(new Event('chatHistoryUpdated')), 100)
+        setTimeout(() => window.dispatchEvent(new Event('chatHistoryUpdated')), 500)
+        // Also use localStorage to trigger storage event
+        localStorage.setItem('chatHistoryUpdate', Date.now().toString())
       }
       return { id: conversation.id, title: conversation.title || undefined }
     } catch (error) {

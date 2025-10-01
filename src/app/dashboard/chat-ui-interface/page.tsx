@@ -364,12 +364,8 @@ export default function ChatUIInterface() {
     }
 
     const userMessageContent = inputValue.trim()
-    setInputValue('')
-
-    if (textareaRef.current) {
-      textareaRef.current.style.height = '80px'
-    }
-
+    
+    // Create user message object with a unique ID BEFORE clearing the input
     const userMessageId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     const userMessage: Message = {
       id: userMessageId,
@@ -378,7 +374,15 @@ export default function ChatUIInterface() {
       timestamp: new Date(),
     }
 
+    // Add user message immediately to UI (before clearing input)
     setMessages(prev => [...prev, userMessage])
+    
+    // Clear input and reset textarea height
+    setInputValue('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '80px'
+    }
+
     setIsLoading(true)
     setError(null)
 
@@ -393,10 +397,6 @@ export default function ChatUIInterface() {
           const url = new URL(window.location.href)
           url.searchParams.set('id', currentConversationId)
           window.history.replaceState({}, '', url.toString())
-          
-          setTimeout(() => {
-            window.dispatchEvent(new Event('chatHistoryUpdated'))
-          }, 100)
         }
       }
 
@@ -433,8 +433,12 @@ export default function ChatUIInterface() {
 
       setMessages(prev => [...prev, aiMessage])
 
+      // Dispatch event to update sidebar chat history
       if (typeof window !== 'undefined') {
+        // Dispatch multiple times to ensure it's received
         window.dispatchEvent(new Event('chatHistoryUpdated'))
+        setTimeout(() => window.dispatchEvent(new Event('chatHistoryUpdated')), 100)
+        setTimeout(() => window.dispatchEvent(new Event('chatHistoryUpdated')), 500)
       }
     } catch (error) {
       console.error('Error calling API:', error)
@@ -451,8 +455,10 @@ export default function ChatUIInterface() {
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
+      // Dispatch event to update sidebar chat history even in case of errors
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('chatHistoryUpdated'))
+        setTimeout(() => window.dispatchEvent(new Event('chatHistoryUpdated')), 100)
       }
     }
   }

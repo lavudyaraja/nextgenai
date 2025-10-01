@@ -132,16 +132,7 @@ export async function POST(request: NextRequest) {
 
     // Save messages using DatabaseService
     if (conversation?.id) {
-      // Save assistant message
-      await db.message.create({
-        data: {
-          conversationId: conversation.id,
-          role: 'assistant',
-          content: aiResponse
-        }
-      })
-
-      // Save user messages
+      // Save user messages first
       for (const message of messages) {
         if (message.role === 'user') {
           await db.message.create({
@@ -154,11 +145,31 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      // Update conversation timestamp
-      await db.conversation.update({
-        where: { id: conversation.id },
-        data: { updatedAt: new Date() }
+      // Save assistant message
+      await db.message.create({
+        data: {
+          conversationId: conversation.id,
+          role: 'assistant',
+          content: aiResponse
+        }
       })
+
+      // Update conversation timestamp to ensure it appears in recent chats
+      try {
+        const updatedConversation = await db.conversation.update({
+          where: { id: conversation.id },
+          data: { 
+            updatedAt: new Date(),
+            title: conversation.title || messages[messages.length - 1]?.content?.substring(0, 50) + '...' || 'New Chat'
+          }
+        })
+        
+        if (updatedConversation) {
+          console.log('Updated conversation timestamp:', updatedConversation.id)
+        }
+      } catch (updateError) {
+        console.error('Failed to update conversation timestamp:', updateError)
+      }
     }
 
     return NextResponse.json({

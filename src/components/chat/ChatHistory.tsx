@@ -90,7 +90,9 @@ export function ChatHistory() {
       }
       
       const response = await fetch('/api/conversations', {
-        headers
+        headers,
+        // Add cache-busting to prevent stale data
+        cache: 'no-store'
       })
       
       if (!response.ok) {
@@ -99,8 +101,16 @@ export function ChatHistory() {
       
       const data = await response.json()
       const conversationsArray = Array.isArray(data) ? data : []
-      setConversations(conversationsArray)
-      console.log('Fetched conversations:', conversationsArray.length)
+      
+      // Filter conversations to only show those with user messages
+      const filteredConversations = conversationsArray.filter((conv: any) => {
+        if (!conv || !conv.id) return false
+        const messages = Array.isArray(conv.messages) ? conv.messages : []
+        return messages.some((msg: any) => msg.role === 'user')
+      })
+      
+      setConversations(filteredConversations)
+      console.log('Fetched conversations:', filteredConversations.length)
     } catch (err) {
       console.error('Failed to fetch conversations:', err)
       setError('Failed to load conversations')
@@ -120,15 +130,37 @@ export function ChatHistory() {
 
     const handleConversationUpdate = () => {
       if (user?.id) {
-        fetchConversations()
+        // Add a small delay to ensure database is updated
+        setTimeout(() => {
+          fetchConversations()
+        }, 100)
       }
     }
 
+    // Also listen for storage events which might indicate changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'chatHistoryUpdate' && user?.id) {
+        console.log('ChatHistory received storage event for chat history update')
+        fetchConversations()
+      }
+    }
+    
     window.addEventListener('chatHistoryUpdated', handleConversationUpdate)
+    window.addEventListener('storage', handleStorageChange)
+    
+    // Polling as a fallback for deployed environments
+    const pollInterval = setInterval(() => {
+      if (user?.id && !loading) {
+        fetchConversations()
+      }
+    }, 15000) // Poll every 15 seconds
+    
     return () => {
       window.removeEventListener('chatHistoryUpdated', handleConversationUpdate)
+      window.removeEventListener('storage', handleStorageChange)
+      clearInterval(pollInterval)
     }
-  }, [user?.id])
+  }, [user?.id, loading])
 
   // Sort conversations
   const sortConversations = (convs: ConversationWithMessages[], sortOption: SortOption) => {
