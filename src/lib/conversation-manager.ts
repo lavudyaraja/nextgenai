@@ -75,12 +75,19 @@ export const createNewConversation = async (title?: string): Promise<{ id: strin
         throw new Error('Authentication required')
       }
       
+      // Prepare headers conditionally
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+      
+      // Only add x-user-id header if userId is available
+      if (userId) {
+        (headers as Record<string, string>)['x-user-id'] = userId
+      }
+      
       const response = await fetch('/api/conversations', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': userId
-        },
+        headers,
         body: JSON.stringify({
           title: conversationTitle
         }),
@@ -238,21 +245,27 @@ export const getAllConversations = async (): Promise<ConversationWithMessages[]>
     // Use API call in browser environment
     try {
       // Get user ID from localStorage (in a real app, you might want to use a more secure method)
-      let userId = 'default-user'
+      let userId = null
       try {
         const storedUser = localStorage.getItem('user')
         if (storedUser) {
           const user = JSON.parse(storedUser)
-          userId = user.id || 'default-user'
+          userId = user.id || null
         }
       } catch (e) {
         console.error('Failed to parse user data', e)
       }
       
+      // Prepare headers conditionally
+      const headers: HeadersInit = {}
+      
+      // Only add x-user-id header if userId is available
+      if (userId) {
+        (headers as Record<string, string>)['x-user-id'] = userId
+      }
+      
       const response = await fetch('/api/conversations', {
-        headers: {
-          'x-user-id': userId
-        }
+        headers
       })
       
       if (!response.ok) {
