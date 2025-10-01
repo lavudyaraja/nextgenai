@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,11 +8,16 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String?
+  password      String         // Hashed password
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Relations
+  conversations Conversation[]
+  posts         Post[]
 }
 
 model Post {
@@ -27,28 +26,36 @@ model Post {
   content   String?
   published Boolean  @default(false)
   authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([authorId])
 }
 
 model Conversation {
-  id          String   @id @default(cuid())
-  title       String?
-  userId      String   @default("default-user")
-  isPinned    Boolean  @default(false)
-  isArchived  Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  messages    Message[]
+  id         String    @id @default(cuid())
+  title      String?
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isPinned   Boolean   @default(false)
+  isArchived Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  messages   Message[]
+
+  @@index([userId])
 }
 
 model Message {
-  id           String   @id @default(cuid())
+  id             String       @id @default(cuid())
   conversationId String
-  role         String   // 'user' or 'assistant'
-  content      String
-  imageUrl     String?
-  createdAt    DateTime @default(now())
-  
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String       // 'user' or 'assistant'
+  content        String
+  imageUrl       String?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
 }

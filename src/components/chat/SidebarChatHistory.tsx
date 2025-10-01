@@ -58,21 +58,22 @@ export function SidebarChatHistory() {
       setError(null)
       console.log('Fetching conversations for sidebar...')
       
-      // Prepare headers with user ID
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
+      // Check if user is authenticated
+      if (!user?.id) {
+        console.log('No authenticated user, clearing conversations')
+        setConversations([])
+        setLoading(false)
+        return
       }
       
-      // Add user ID to headers if available
-      if (user?.id) {
-        headers['x-user-id'] = user.id
-      }
+      console.log('Fetching conversations for user ID:', user.id)
       
-      console.log('Fetching conversations with user ID:', user?.id)
-      
-      // Use the API to get conversations
+      // Use the API to get conversations for the current user
       const response = await fetch('/api/conversations', {
-        headers
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id
+        }
       })
       console.log('Response status:', response.status)
       
@@ -135,12 +136,22 @@ export function SidebarChatHistory() {
   }
 
   useEffect(() => {
-    fetchConversations()
+    // Only fetch conversations if user is authenticated
+    if (user?.id) {
+      fetchConversations()
+    } else {
+      // Clear conversations if user is not authenticated
+      setConversations([])
+      setLoading(false)
+    }
     
     // Listen for chat history updates
     const handleChatHistoryUpdate = (event: Event) => {
       console.log('Received chatHistoryUpdated event')
-      fetchConversations()
+      // Only fetch if user is authenticated
+      if (user?.id) {
+        fetchConversations()
+      }
     }
     
     window.addEventListener('chatHistoryUpdated', handleChatHistoryUpdate)

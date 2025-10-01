@@ -24,6 +24,7 @@ import {
 import { useSearchParams } from 'next/navigation'
 import { getMessagesByConversationId, createNewConversation } from '@/lib/conversation-manager'
 import { performanceUtils } from '@/components/PerformanceMonitor'
+import { useAuth } from '@/contexts/auth-context'
 
 interface Message {
   id: string
@@ -293,6 +294,7 @@ const FeatureCards = () => {
 export default function ChatUIInterface() {
   const searchParams = useSearchParams()
   const urlConversationId = searchParams.get('id')
+  const { user } = useAuth() // Get the current user from auth context
   
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
@@ -300,6 +302,7 @@ export default function ChatUIInterface() {
   const [selectedModel, setSelectedModel] = useState('gpt')
   const [conversationId, setConversationId] = useState<string | null>(urlConversationId)
   const [initialLoadComplete, setInitialLoadComplete] = useState(false)
+  const [error, setError] = useState<string | null>(null) // Add error state
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const inputContainerRef = useRef<HTMLDivElement>(null)
@@ -356,6 +359,14 @@ export default function ChatUIInterface() {
       // Always reset messages when URL changes
       setMessages([])
       setInitialLoadComplete(false)
+      setError(null)
+      
+      // Check if user is authenticated
+      if (!user?.id) {
+        setError('You must be logged in to view conversations')
+        setInitialLoadComplete(true)
+        return
+      }
       
       if (urlConversationId) {
         try {
@@ -366,6 +377,7 @@ export default function ChatUIInterface() {
           setInitialLoadComplete(true)
         } catch (error) {
           console.error('Failed to load conversation:', error)
+          setError('Failed to load conversation')
           setMessages([])
           setConversationId(urlConversationId)
           setInitialLoadComplete(true)
@@ -379,7 +391,7 @@ export default function ChatUIInterface() {
     }
 
     loadConversation()
-  }, [urlConversationId]) // Only depend on urlConversationId to trigger when URL changes
+  }, [urlConversationId, user?.id]) // Depend on urlConversationId and user.id
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -398,6 +410,12 @@ export default function ChatUIInterface() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!inputValue.trim() || isLoading) return
+
+    // Check if user is authenticated
+    if (!user?.id) {
+      setError('You must be logged in to send messages')
+      return
+    }
 
     const userMessageContent = inputValue.trim()
     setInputValue('')
@@ -419,6 +437,7 @@ export default function ChatUIInterface() {
     // Add user message immediately to UI
     setMessages(prev => [...prev, userMessage])
     setIsLoading(true)
+    setError(null)
 
     try {
       // If this is a new conversation, create it first
@@ -449,6 +468,7 @@ export default function ChatUIInterface() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': user.id // Pass user ID in header
         },
         body: JSON.stringify({
           messages: [{ role: 'user', content: userMessageContent }],
@@ -487,6 +507,7 @@ export default function ChatUIInterface() {
       }, 100)
     } catch (error) {
       console.error('Error calling API:', error)
+      setError(error instanceof Error ? error.message : 'Failed to get response from AI assistant')
       // Handle error - add error message
       const errorId = `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
       const errorMessage: Message = {
@@ -525,8 +546,16 @@ export default function ChatUIInterface() {
       <div className="flex-1 overflow-hidden pb-4">
         <ScrollArea className="h-full">
           <div className="p-4 space-y-4" key={`messages-container-${messages.length}`}>
+            {/* Show error message if there is an error */}
+            {error && (
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-destructive">
+                <p className="font-medium">Error:</p>
+                <p>{error}</p>
+              </div>
+            )}
+            
             {/* Show feature cards when there are no messages */}
-            {messages.length === 0 && !isLoading && <FeatureCards />}
+            {messages.length === 0 && !isLoading && !error && <FeatureCards />}
             
             {messages.map((message) => (
               <MessageItem

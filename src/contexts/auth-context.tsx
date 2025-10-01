@@ -30,7 +30,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const storedUser = localStorage.getItem('user')
         if (storedUser) {
-          setUser(JSON.parse(storedUser))
+          const parsedUser = JSON.parse(storedUser)
+          // Validate that the parsed user has the required fields
+          if (parsedUser.id && parsedUser.email) {
+            // Check if user data has expired
+            if (parsedUser.expiresAt && Date.now() > parsedUser.expiresAt) {
+              // Clear expired user data
+              localStorage.removeItem('user')
+            } else {
+              setUser(parsedUser)
+            }
+          } else {
+            // Clear invalid user data
+            localStorage.removeItem('user')
+          }
         }
       } catch (e) {
         console.error('Failed to parse user data', e)
@@ -57,7 +70,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data.success) {
         setUser(data.user)
-        localStorage.setItem('user', JSON.stringify(data.user))
+        // Store user with an expiration time (24 hours)
+        const userData = {
+          ...data.user,
+          expiresAt: Date.now() + 24 * 60 * 60 * 1000 // 24 hours from now
+        }
+        localStorage.setItem('user', JSON.stringify(userData))
         return { success: true }
       } else {
         return { success: false, message: data.message }
@@ -81,9 +99,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await response.json()
 
       if (data.success) {
-        setUser(data.user)
-        localStorage.setItem('user', JSON.stringify(data.user))
-        return { success: true }
+        // Don't automatically log in the user after signup
+        // Just return success so the UI can redirect to login page
+        return { success: true, message: 'Account created successfully. Please login with your credentials.' }
       } else {
         return { success: false, message: data.message }
       }

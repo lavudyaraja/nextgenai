@@ -266,18 +266,23 @@ class DatabaseService {
   }
 
   // Add the missing createConversation method
-  async createConversation(title?: string): Promise<string> {
+  async createConversation(title?: string, userId?: string): Promise<string> {
     try {
+      // Validate that we have a user ID
+      if (!userId || userId.trim() === '') {
+        throw new Error('User ID is required to create a conversation')
+      }
+      
       const newConversation = await db.conversation.create({
         data: {
           title: title || 'New Chat',
-          userId: 'default-user',
+          userId: userId, // Use the provided user ID
           createdAt: new Date(),
           updatedAt: new Date()
         }
       })
       
-      console.log('DatabaseService: Created conversation with ID:', newConversation.id)
+      console.log('DatabaseService: Created conversation with ID:', newConversation.id, 'for user:', userId)
       return newConversation.id
     } catch (error) {
       console.error('DatabaseService - Failed to create conversation:', error)

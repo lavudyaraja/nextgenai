@@ -36,30 +36,46 @@ async function getUserIdFromRequest(request: NextRequest): Promise<string | null
   const userId = request.headers.get('x-user-id')
   console.log('User ID from headers:', userId)
   
+  // Validate that we have a user ID
+  if (userId) {
+    // In a real application, you would validate that this is a legitimate user ID
+    // For now, we'll just check that it's not empty
+    if (userId.trim() !== '') {
+      return userId
+    }
+  }
+  
   // If not in headers, try to get from cookies
-  if (!userId) {
-    const cookieHeader = request.headers.get('cookie')
-    console.log('Cookie header:', cookieHeader)
-    if (cookieHeader) {
-      const cookies = cookieHeader.split(';').map(cookie => cookie.trim())
-      const userCookie = cookies.find(cookie => cookie.startsWith('user='))
-      console.log('User cookie:', userCookie)
-      if (userCookie) {
-        try {
-          const userJson = decodeURIComponent(userCookie.split('=')[1])
-          console.log('User JSON:', userJson)
-          const user = JSON.parse(userJson)
-          console.log('Parsed user:', user)
-          return user.id || null
-        } catch (e) {
-          console.error('Error parsing user cookie:', e)
+  const cookieHeader = request.headers.get('cookie')
+  console.log('Cookie header:', cookieHeader)
+  if (cookieHeader) {
+    const cookies = cookieHeader.split(';').map(cookie => cookie.trim())
+    const userCookie = cookies.find(cookie => cookie.startsWith('user='))
+    console.log('User cookie:', userCookie)
+    if (userCookie) {
+      try {
+        const userJson = decodeURIComponent(userCookie.split('=')[1])
+        console.log('User JSON:', userJson)
+        const user = JSON.parse(userJson)
+        // Validate that the user object has an ID
+        if (user.id && user.id.trim() !== '') {
+          // Check if user data is still valid (not expired)
+          if (!user.expiresAt || user.expiresAt > Date.now()) {
+            console.log('Parsed user:', user)
+            return user.id
+          } else {
+            console.log('User session expired')
+            return null
+          }
         }
+      } catch (e) {
+        console.error('Error parsing user cookie:', e)
       }
     }
   }
   
-  console.log('Final user ID:', userId)
-  return userId
+  console.log('No valid user ID found')
+  return null
 }
 
 // GET /api/conversations - List all conversations
@@ -72,10 +88,12 @@ export async function GET(request: NextRequest) {
     
     if (!userId) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized: No valid user ID found' },
         { status: 401 }
       )
     }
+    
+    console.log('Fetching conversations for user:', userId)
     
     // Fetch conversations from database service (which uses simple storage)
     // Filter by userId to ensure users only see their own conversations
@@ -138,7 +156,7 @@ export async function POST(request: NextRequest) {
     
     if (!userId) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized: No valid user ID found' },
         { status: 401 }
       )
     }
@@ -194,12 +212,20 @@ export async function POST(request: NextRequest) {
     }
     
     // Handle create conversation (default behavior)
+    // Ensure the conversation is associated with the current user
+    const conversationData = {
+      ...body,
+      userId: userId
+    }
+    
+    console.log('Creating conversation with data:', conversationData)
+    
     const conversation = await db.conversation.create({
-      data: {
-        ...body,
-        userId: userId // Ensure the conversation is associated with the current user
-      }
+      data: conversationData
     })
+    
+    console.log('Created conversation:', conversation.id)
+    
     return NextResponse.json(conversation)
   } catch (error) {
     console.error('Error processing conversation request:', error)

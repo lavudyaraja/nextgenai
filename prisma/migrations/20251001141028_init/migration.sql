@@ -1,8 +1,9 @@
 -- CreateTable
-CREATE TABLE "User" (
+CREATE TABLE "public"."User" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "name" TEXT,
+    "password" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -10,7 +11,7 @@ CREATE TABLE "User" (
 );
 
 -- CreateTable
-CREATE TABLE "Post" (
+CREATE TABLE "public"."Post" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "content" TEXT,
@@ -23,10 +24,10 @@ CREATE TABLE "Post" (
 );
 
 -- CreateTable
-CREATE TABLE "Conversation" (
+CREATE TABLE "public"."Conversation" (
     "id" TEXT NOT NULL,
     "title" TEXT,
-    "userId" TEXT NOT NULL DEFAULT 'default-user',
+    "userId" TEXT NOT NULL,
     "isPinned" BOOLEAN NOT NULL DEFAULT false,
     "isArchived" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -36,7 +37,7 @@ CREATE TABLE "Conversation" (
 );
 
 -- CreateTable
-CREATE TABLE "Message" (
+CREATE TABLE "public"."Message" (
     "id" TEXT NOT NULL,
     "conversationId" TEXT NOT NULL,
     "role" TEXT NOT NULL,
@@ -48,10 +49,22 @@ CREATE TABLE "Message" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+CREATE UNIQUE INDEX "User_email_key" ON "public"."User"("email");
+
+-- CreateIndex
+CREATE INDEX "Post_authorId_idx" ON "public"."Post"("authorId");
+
+-- CreateIndex
+CREATE INDEX "Conversation_userId_idx" ON "public"."Conversation"("userId");
+
+-- CreateIndex
+CREATE INDEX "Message_conversationId_idx" ON "public"."Message"("conversationId");
 
 -- AddForeignKey
-ALTER TABLE "Post" ADD CONSTRAINT "Post_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "public"."Post" ADD CONSTRAINT "Post_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "public"."User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Message" ADD CONSTRAINT "Message_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."Conversation" ADD CONSTRAINT "Conversation_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Message" ADD CONSTRAINT "Message_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "public"."Conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;

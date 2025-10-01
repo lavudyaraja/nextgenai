@@ -133,7 +133,6 @@ export default function RootLayout({
               {children}
             </Layout>
             <Toaster />
-            <SonnerToaster />
           </AuthProvider>
         </Suspense>
       </body>

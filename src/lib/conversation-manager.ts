@@ -59,10 +59,20 @@ export const createNewConversation = async (title?: string): Promise<{ id: strin
         const storedUser = localStorage.getItem('user')
         if (storedUser) {
           const user = JSON.parse(storedUser)
-          userId = user.id || 'default-user'
+          // Check if user data is still valid (not expired)
+          if (user.id && (!user.expiresAt || user.expiresAt > Date.now())) {
+            userId = user.id
+          } else {
+            // Clear expired user data
+            localStorage.removeItem('user')
+            throw new Error('User session expired')
+          }
+        } else {
+          throw new Error('No user data found')
         }
       } catch (e) {
         console.error('Failed to parse user data', e)
+        throw new Error('Authentication required')
       }
       
       const response = await fetch('/api/conversations', {
@@ -80,7 +90,8 @@ export const createNewConversation = async (title?: string): Promise<{ id: strin
       })
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
       }
       
       const conversation = await response.json()
@@ -91,7 +102,7 @@ export const createNewConversation = async (title?: string): Promise<{ id: strin
     } catch (error) {
       console.error('Failed to create conversation via API:', error)
       throw new ConversationError(
-        'Failed to create conversation',
+        error instanceof Error ? error.message : 'Failed to create conversation',
         'API_ERROR',
         error
       )

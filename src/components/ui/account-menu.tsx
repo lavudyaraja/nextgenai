@@ -26,6 +26,8 @@ import {
   Database,
   Lock,
 } from 'lucide-react'
+import { useAuth } from '@/contexts/auth-context'
+import { useRouter } from 'next/navigation'
 
 // Import settings components
 import { GeneralSettings } from '@/components/settings/GeneralSettings'
@@ -49,6 +51,8 @@ export function AccountMenu({
 }: AccountMenuProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [activeSettingsTab, setActiveSettingsTab] = useState<string>('general')
+  const { logout } = useAuth()
+  const router = useRouter()
 
   const handleUpgradePlan = () => {
     console.log('Upgrade plan clicked')
@@ -60,9 +64,13 @@ export function AccountMenu({
     // Implement AI customization logic
   }
 
-  const handleLogout = () => {
-    console.log('Logout clicked')
-    // Implement logout logic
+  const handleLogout = async () => {
+    try {
+      await logout()
+      router.push('/')
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
   }
 
   const settingsOptions = [
