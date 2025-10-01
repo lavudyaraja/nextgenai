@@ -7,6 +7,55 @@ import { GeminiService } from '@/services/geminiService'
 import { ClaudeService } from '@/services/claudeService'
 import { OpenRouterService } from '@/services/openrouterService'
 
+// Helper function to get user ID from request (similar to other API routes)
+async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
+  console.log('Getting user ID from request in chat route')
+  
+  // Try to get user ID from headers
+  const userId = request.headers.get('x-user-id')
+  console.log('User ID from headers:', userId)
+  
+  // If not in headers, try to get from cookies
+  if (!userId) {
+    const cookieHeader = request.headers.get('cookie')
+    console.log('Cookie header:', cookieHeader)
+    if (cookieHeader) {
+      const cookies = cookieHeader.split(';').map(cookie => cookie.trim())
+      const userCookie = cookies.find(cookie => cookie.startsWith('user='))
+      console.log('User cookie:', userCookie)
+      if (userCookie) {
+        try {
+          const userJson = decodeURIComponent(userCookie.split('=')[1])
+          console.log('User JSON:', userJson)
+          const user = JSON.parse(userJson)
+          // Validate that the user object has an ID
+          if (user.id && user.id.trim() !== '') {
+            // Check if user data is still valid (not expired)
+            if (!user.expiresAt || user.expiresAt > Date.now()) {
+              console.log('Parsed user:', user)
+              return user.id
+            } else {
+              console.log('User session expired')
+              return null
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing user cookie:', e)
+        }
+      }
+    }
+  }
+  
+  // Fallback to default user if not provided (for development)
+  if (!userId) {
+    console.log('No user ID found, using default-user')
+    return 'default-user'
+  }
+  
+  console.log('Final user ID:', userId)
+  return userId
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { messages, conversationId, model = 'gpt' } = await request.json()
@@ -17,6 +66,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 })
     }
 
+    // Get user ID from request
+    const userId = await getUserIdFromRequest(request)
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid user ID found' },
+        { status: 401 }
+      )
+    }
+
     // Create conversation if not exists
     let finalConversationId = conversationId
     if (!finalConversationId) {
@@ -25,11 +83,11 @@ export async function POST(request: NextRequest) {
         const conversation = await db.conversation.create({
           data: {
             title: messages[messages.length - 1]?.content?.substring(0, 50) + '...' || 'New Chat',
-            userId: 'default-user'
+            userId: userId // Use the actual user ID instead of hardcoded 'default-user'
           }
         })
         finalConversationId = conversation.id
-        console.log('Created new conversation with database:', finalConversationId)
+        console.log('Created new conversation with database:', finalConversationId, 'for user:', userId)
       } catch (dbError) {
         console.error('Database error when creating conversation:', dbError)
         return NextResponse.json(
@@ -39,7 +97,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate that the conversation exists before proceeding
+    // Validate that the conversation exists and belongs to the user before proceeding
     try {
       // First try to find in database
       let conversationExists = await db.conversation.findUnique({
@@ -62,6 +120,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: 'Conversation not found' },
           { status: 404 }
+        )
+      }
+      
+      // Check if the conversation belongs to the current user
+      if (conversationExists.userId !== userId) {
+        console.error('Unauthorized access to conversation:', finalConversationId, 'User:', userId)
+        return NextResponse.json(
+          { error: 'Unauthorized access to conversation' },
+          { status: 403 }
         )
       }
     } catch (dbError) {

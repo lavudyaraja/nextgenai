@@ -10,11 +10,24 @@ async function setupDatabase() {
     await prisma.$connect()
     console.log('Connected to database successfully')
     
+    // Create a default user for development
+    const defaultUser = await prisma.user.upsert({
+      where: { email: 'default@example.com' },
+      update: {},
+      create: {
+        email: 'default@example.com',
+        name: 'Default User',
+        password: 'default-password' // In a real app, this should be hashed
+      }
+    })
+    
+    console.log('Created/updated default user:', defaultUser.id)
+    
     // Create a test conversation
     const conversation = await prisma.conversation.create({
       data: {
         title: 'Test Conversation',
-        userId: 'default-user'
+        userId: defaultUser.id
       }
     })
     

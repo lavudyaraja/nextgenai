@@ -16,9 +16,17 @@ interface Message {
 interface Conversation {
   id: string
   title?: string | null
+  userId: string
   createdAt: Date
   updatedAt: Date
   messages?: Message[]
+}
+
+// Helper function to get user ID from request headers
+function getUserIdFromRequest(request: NextRequest): string | null {
+  // Try to get user ID from headers
+  const userId = request.headers.get('x-user-id')
+  return userId || 'default-user' // Fallback to default user if not provided
 }
 
 export async function POST(request: NextRequest) {
@@ -27,6 +35,15 @@ export async function POST(request: NextRequest) {
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 })
+    }
+
+    // Get user ID from request
+    const userId = getUserIdFromRequest(request)
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid user ID found' },
+        { status: 401 }
+      )
     }
 
     // Initialize OpenAI
@@ -47,12 +64,23 @@ export async function POST(request: NextRequest) {
         console.log(`Conversation ${conversationId} not found`)
         return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
       } else {
+        // Check if the conversation belongs to the current user
+        if (dbConversation.userId !== userId) {
+          console.error('Unauthorized access to conversation:', conversationId, 'User:', userId)
+          return NextResponse.json(
+            { error: 'Unauthorized access to conversation' },
+            { status: 403 }
+          )
+        }
         conversation = dbConversation as unknown as Conversation
       }
     } else {
       // Create new conversation using DatabaseService
       const newDbConversation = await db.conversation.create({
-        data: {}
+        data: {
+          title: messages[messages.length - 1]?.content?.substring(0, 50) + '...' || 'New Chat',
+          userId: userId // Use the actual user ID instead of hardcoded value
+        }
       })
       conversation = newDbConversation as unknown as Conversation
     }
@@ -143,6 +171,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Conversation ID required' }, { status: 400 })
     }
 
+    // Get user ID from request
+    const userId = getUserIdFromRequest(request)
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid user ID found' },
+        { status: 401 }
+      )
+    }
+
     // Try to find conversation using DatabaseService
     const dbConversation = await db.conversation.findUnique({
       where: { id: conversationId },
@@ -156,6 +193,15 @@ export async function GET(request: NextRequest) {
     if (!dbConversation) {
       console.log(`Conversation ${conversationId} not found`)
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
+    }
+
+    // Check if the conversation belongs to the current user
+    if (dbConversation.userId !== userId) {
+      console.error('Unauthorized access to conversation:', conversationId, 'User:', userId)
+      return NextResponse.json(
+        { error: 'Unauthorized access to conversation' },
+        { status: 403 }
+      )
     }
 
     return NextResponse.json(dbConversation)
