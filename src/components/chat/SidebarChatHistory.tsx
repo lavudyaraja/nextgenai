@@ -7,14 +7,14 @@ import {
   MoreHorizontal, 
   MessageCircle,
   RefreshCw,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/auth-context'
@@ -45,117 +45,146 @@ export function SidebarChatHistory() {
   const [error, setError] = useState<string | null>(null)
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false)
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
-  // Fetch conversations from API
   const fetchConversations = useCallback(async () => {
+    // Don't fetch if already loading or refreshing
+    if (loading && refreshing) return
+    
     try {
       setError(null)
       
-      // Check if user is authenticated
+      // Check authentication first
       if (!user?.id) {
-        console.log('No authenticated user, clearing conversations')
+        console.log('[Sidebar] No authenticated user')
         setConversations([])
         setLoading(false)
         setRefreshing(false)
         return
       }
       
-      console.log('Fetching conversations for user:', user.id)
+      console.log('[Sidebar] Fetching conversations for user:', user.id)
       
-      const response = await fetch('/api/conversations', {
+      // Use absolute URL in production to avoid routing issues
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+      const url = `${baseUrl}/api/conversations`
+      
+      const response = await fetch(url, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': user.id
+          'x-user-id': user.id,
         },
-        cache: 'no-store' // Prevent caching
+        credentials: 'include', // Include cookies for authentication
+        cache: 'no-store'
       })
       
+      console.log('[Sidebar] Response status:', response.status)
+      
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const errorText = await response.text()
+        console.error('[Sidebar] API error:', errorText)
+        throw new Error(`Failed to fetch: ${response.status}`)
       }
       
       const data = await response.json()
-      const conversationsArray = Array.isArray(data) ? data : []
+      console.log('[Sidebar] Raw response data:', data)
       
-      // Transform conversations to ChatItem format
-      const chatItems: ChatItem[] = conversationsArray
+      // Ensure we have an array
+      if (!Array.isArray(data)) {
+        console.error('[Sidebar] Response is not an array:', data)
+        setConversations([])
+        setLoading(false)
+        setRefreshing(false)
+        return
+      }
+      
+      // Filter and transform conversations
+      const chatItems: ChatItem[] = data
         .filter((conv: any) => {
-          // Only include conversations with at least one user message
-          if (!conv || !conv.id) return false
+          if (!conv || !conv.id) {
+            console.warn('[Sidebar] Invalid conversation:', conv)
+            return false
+          }
+          
+          // Check if conversation has messages
           const messages = Array.isArray(conv.messages) ? conv.messages : []
-          return messages.some((msg: any) => msg.role === 'user')
+          const hasUserMessage = messages.some((msg: any) => msg?.role === 'user')
+          
+          if (!hasUserMessage) {
+            console.log('[Sidebar] Skipping conversation without user messages:', conv.id)
+          }
+          
+          return hasUserMessage
         })
         .map((conv: any) => {
           const messages = Array.isArray(conv.messages) ? conv.messages : []
-          const firstUserMessage = messages.find((msg: any) => msg.role === 'user')
+          const firstUserMessage = messages.find((msg: any) => msg?.role === 'user')
           
-          const title = firstUserMessage 
-            ? firstUserMessage.content.substring(0, 40) + (firstUserMessage.content.length > 40 ? '...' : '')
-            : conv.title || 'New Conversation'
+          // Generate title from first user message
+          let title = 'New Conversation'
+          if (firstUserMessage?.content) {
+            const content = String(firstUserMessage.content)
+            title = content.length > 40 
+              ? content.substring(0, 40) + '...' 
+              : content
+          } else if (conv.title) {
+            title = conv.title
+          }
 
           return {
             id: conv.id,
             title: title,
             lastMessage: '',
-            timestamp: new Date(conv.updatedAt || conv.createdAt)
+            timestamp: new Date(conv.updatedAt || conv.createdAt || Date.now())
           }
         })
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
 
-      console.log('Fetched chat items:', chatItems.length)
+      console.log('[Sidebar] Processed chat items:', chatItems.length)
       setConversations(chatItems)
+      
     } catch (err) {
-      console.error('Failed to fetch conversations for sidebar:', err)
-      setError(err instanceof Error ? err.message : 'Failed to fetch conversations')
+      console.error('[Sidebar] Failed to fetch conversations:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch conversations'
+      setError(errorMessage)
       setConversations([])
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [user?.id])
+  }, [user?.id, loading, refreshing])
 
+  // Initial load and event listeners
   useEffect(() => {
+    console.log('[Sidebar] User changed:', user?.id)
+    
+    // Reset state when user changes
+    setConversations([])
+    setLoading(true)
+    
+    // Fetch conversations
     fetchConversations()
     
-    // Listen for chat history updates with multiple event listeners for reliability
+    // Listen for updates
     const handleChatHistoryUpdate = () => {
-      console.log('Sidebar received chatHistoryUpdated event')
-      // Add a small delay to ensure database is updated
-      setTimeout(() => {
-        fetchConversations()
-      }, 100)
-    }
-    
-    // Also listen for storage events which might indicate changes
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'chatHistoryUpdate') {
-        console.log('Sidebar received storage event for chat history update')
-        fetchConversations()
-      }
+      console.log('[Sidebar] Received chatHistoryUpdated event')
+      fetchConversations()
     }
     
     window.addEventListener('chatHistoryUpdated', handleChatHistoryUpdate)
-    window.addEventListener('storage', handleStorageChange)
-    
-    // Polling as a fallback for deployed environments
-    const pollInterval = setInterval(() => {
-      if (user?.id && !loading && !refreshing) {
-        fetchConversations()
-      }
-    }, 10000) // Poll every 10 seconds
     
     return () => {
       window.removeEventListener('chatHistoryUpdated', handleChatHistoryUpdate)
-      window.removeEventListener('storage', handleStorageChange)
-      clearInterval(pollInterval)
     }
-  }, [fetchConversations, user?.id, loading, refreshing])
+  }, [user?.id])
 
-  // Auto-refresh when tab becomes visible
+  // Visibility change handler
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && user?.id) {
-        console.log('Tab visible, refreshing conversations')
+        console.log('[Sidebar] Tab became visible, refreshing')
+        setRefreshing(true)
         fetchConversations()
       }
     }
@@ -164,38 +193,48 @@ export function SidebarChatHistory() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [fetchConversations, user?.id])
+  }, [user?.id])
 
   const handleRefresh = async () => {
+    if (!user?.id) return
+    console.log('[Sidebar] Manual refresh triggered')
     setRefreshing(true)
     await fetchConversations()
   }
 
   const handleChatSelect = (conversationId: string) => {
-    console.log('Navigating to conversation:', conversationId)
+    console.log('[Sidebar] Navigating to conversation:', conversationId)
     router.push(`/dashboard/chat-ui-interface?id=${conversationId}`)
   }
 
   const handleDelete = async (conversationId: string) => {
     if (!user?.id) {
-      setError('You must be logged in to delete conversations')
+      setError('Authentication required')
       return
     }
 
+    setDeleting(true)
+    
     try {
-      console.log('Deleting conversation:', conversationId)
+      console.log('[Sidebar] Deleting conversation:', conversationId)
       
-      const response = await fetch(`/api/conversations/${conversationId}`, {
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+      const url = `${baseUrl}/api/conversations/${conversationId}`
+      
+      const response = await fetch(url, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
           'x-user-id': user.id
-        }
+        },
+        credentials: 'include'
       })
+
+      console.log('[Sidebar] Delete response status:', response.status)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+        throw new Error(errorData.error || `Failed to delete: ${response.status}`)
       }
 
       // Update local state immediately
@@ -204,19 +243,20 @@ export function SidebarChatHistory() {
       // Notify other components
       window.dispatchEvent(new Event('chatHistoryUpdated'))
       
-      console.log('Conversation deleted successfully')
+      console.log('[Sidebar] Conversation deleted successfully')
       
-      // Refresh to ensure sync
-      setTimeout(() => fetchConversations(), 500)
     } catch (error) {
-      console.error('Failed to delete conversation:', error)
-      setError(error instanceof Error ? error.message : 'Failed to delete conversation')
+      console.error('[Sidebar] Delete failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete'
+      setError(errorMessage)
       
-      // Refresh on error to get correct state
-      await fetchConversations()
+      // Refresh to sync state
+      setTimeout(() => fetchConversations(), 500)
       
       // Clear error after 5 seconds
       setTimeout(() => setError(null), 5000)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -239,66 +279,78 @@ export function SidebarChatHistory() {
     setConversationToDelete(null)
   }
 
-  if (loading) {
+  // Loading state
+  if (loading && conversations.length === 0) {
     return (
-      <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-        Loading conversations...
+      <div className="px-2 py-4 text-center">
+        <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2 text-muted-foreground" />
+        <p className="text-xs text-muted-foreground">Loading chats...</p>
       </div>
     )
   }
 
+  // Not authenticated
   if (!user?.id) {
     return (
-      <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+      <div className="px-2 py-4 text-center text-xs text-muted-foreground">
         Please log in to view chats
       </div>
     )
   }
 
-  if (error) {
+  // Error state
+  if (error && conversations.length === 0) {
     return (
       <div className="px-2 py-4 text-center">
         <p className="text-xs text-red-500 mb-2">{error}</p>
         <Button 
           variant="outline" 
-          size="sm" 
-          onClick={fetchConversations}
+          size="sm"
+          onClick={handleRefresh}
+          disabled={refreshing}
         >
-          Retry
+          {refreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Retry'}
         </Button>
       </div>
     )
   }
 
-  if (conversations.length === 0) {
+  // Empty state
+  if (conversations.length === 0 && !loading) {
     return (
-      <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-        No conversations yet. Start a chat to see it here!
+      <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+        No conversations yet
       </div>
     )
   }
 
   return (
     <div className="h-full flex flex-col">
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteConfirmationOpen} onOpenChange={setDeleteConfirmationOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Conversation?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the conversation.
+              This action cannot be undone. The conversation will be permanently deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelDelete}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-500 hover:bg-red-600">
+            <AlertDialogCancel onClick={handleCancelDelete} disabled={deleting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelete} 
+              className="bg-red-500 hover:bg-red-600"
+              disabled={deleting}
+            >
+              {deleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
       
-      <div className="flex items-center justify-between px-2 py-2">
+      <div className="flex items-center justify-between px-2 py-2 border-b">
         <h3 className="text-sm font-semibold text-gray-400">Recent Chats</h3>
         <Button 
           variant="ghost" 
@@ -310,12 +362,19 @@ export function SidebarChatHistory() {
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
         </Button>
       </div>
+      
+      {error && (
+        <div className="px-2 py-1">
+          <p className="text-xs text-red-500">{error}</p>
+        </div>
+      )}
+      
       <ScrollArea className="flex-1 pr-2">
-        <div className="space-y-1">
+        <div className="space-y-1 p-2">
           {conversations.map((conversation) => (
             <div
               key={conversation.id}
-              className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-800 cursor-pointer group"
+              className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-800 cursor-pointer group transition-colors"
               onClick={() => handleChatSelect(conversation.id)}
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -340,6 +399,7 @@ export function SidebarChatHistory() {
                     <DropdownMenuItem 
                       onClick={(e) => handleDeleteClick(conversation.id, e)}
                       className="text-red-500 focus:text-red-500"
+                      disabled={deleting}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete

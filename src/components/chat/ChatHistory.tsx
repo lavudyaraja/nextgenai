@@ -2,7 +2,8 @@
 
 import { 
   useState, 
-  useEffect 
+  useEffect,
+  useCallback 
 } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,8 +18,6 @@ import {
   Clock,
   Calendar,
   MoreHorizontal,
-  Pin,
-  Archive,
   Sparkles,
   Zap
 } from 'lucide-react'
@@ -70,101 +69,74 @@ export function ChatHistory() {
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  // Fetch conversations from API
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
       
-      // Check if user is authenticated
       if (!user?.id) {
-        console.log('No authenticated user')
+        console.log('[ChatHistory] No authenticated user')
         setConversations([])
         setLoading(false)
         return
       }
       
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'x-user-id': user.id
-      }
+      console.log('[ChatHistory] Fetching conversations for user:', user.id)
       
-      const response = await fetch('/api/conversations', {
-        headers,
-        // Add cache-busting to prevent stale data
+      // Use absolute URL for production
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+      const url = `${baseUrl}/api/conversations`
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id
+        },
+        credentials: 'include',
         cache: 'no-store'
       })
       
+      console.log('[ChatHistory] Response status:', response.status)
+      
       if (!response.ok) {
+        const errorText = await response.text()
+        console.error('[ChatHistory] API error:', errorText)
         throw new Error(`Failed to fetch: ${response.status}`)
       }
       
       const data = await response.json()
+      console.log('[ChatHistory] Fetched data:', data)
+      
       const conversationsArray = Array.isArray(data) ? data : []
-      
-      // Filter conversations to only show those with user messages
-      const filteredConversations = conversationsArray.filter((conv: any) => {
-        if (!conv || !conv.id) return false
-        const messages = Array.isArray(conv.messages) ? conv.messages : []
-        return messages.some((msg: any) => msg.role === 'user')
-      })
-      
-      setConversations(filteredConversations)
-      console.log('Fetched conversations:', filteredConversations.length)
+      setConversations(conversationsArray)
+      console.log('[ChatHistory] Set conversations:', conversationsArray.length)
     } catch (err) {
-      console.error('Failed to fetch conversations:', err)
-      setError('Failed to load conversations')
+      console.error('[ChatHistory] Failed to fetch:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load conversations')
       setConversations([])
     } finally {
       setLoading(false)
     }
-  }
+  }, [user?.id])
 
   useEffect(() => {
-    if (user?.id) {
-      fetchConversations()
-    } else {
-      setConversations([])
-      setLoading(false)
-    }
+    console.log('[ChatHistory] User changed:', user?.id)
+    fetchConversations()
 
     const handleConversationUpdate = () => {
-      if (user?.id) {
-        // Add a small delay to ensure database is updated
-        setTimeout(() => {
-          fetchConversations()
-        }, 100)
-      }
+      console.log('[ChatHistory] Received update event')
+      fetchConversations()
     }
 
-    // Also listen for storage events which might indicate changes
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'chatHistoryUpdate' && user?.id) {
-        console.log('ChatHistory received storage event for chat history update')
-        fetchConversations()
-      }
-    }
-    
     window.addEventListener('chatHistoryUpdated', handleConversationUpdate)
-    window.addEventListener('storage', handleStorageChange)
-    
-    // Polling as a fallback for deployed environments
-    const pollInterval = setInterval(() => {
-      if (user?.id && !loading) {
-        fetchConversations()
-      }
-    }, 15000) // Poll every 15 seconds
-    
     return () => {
       window.removeEventListener('chatHistoryUpdated', handleConversationUpdate)
-      window.removeEventListener('storage', handleStorageChange)
-      clearInterval(pollInterval)
     }
-  }, [user?.id, loading])
+  }, [fetchConversations])
 
-  // Sort conversations
   const sortConversations = (convs: ConversationWithMessages[], sortOption: SortOption) => {
-    const sorted = [...convs].sort((a, b) => {
+    return [...convs].sort((a, b) => {
       switch (sortOption) {
         case 'newest':
           return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
@@ -178,10 +150,8 @@ export function ChatHistory() {
           return 0
       }
     })
-    return sorted
   }
 
-  // Filter and sort conversations
   useEffect(() => {
     let filtered = conversations
 
@@ -202,18 +172,20 @@ export function ChatHistory() {
   const handleNewChat = async () => {
     try {
       if (!user?.id) {
-        setError('You must be logged in to create a chat')
+        setError('Please log in to create a chat')
         return
       }
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'x-user-id': user.id
-      }
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+      const url = `${baseUrl}/api/conversations`
       
-      const response = await fetch('/api/conversations', {
+      const response = await fetch(url, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id
+        },
+        credentials: 'include',
         body: JSON.stringify({ title: 'New Chat' })
       })
 
@@ -222,46 +194,46 @@ export function ChatHistory() {
       const newConversation = await response.json()
       router.push(`/dashboard/chat-ui-interface?id=${newConversation.id}`)
       
-      // Refresh conversations
       await fetchConversations()
       window.dispatchEvent(new Event('chatHistoryUpdated'))
     } catch (err) {
-      console.error('Failed to create new conversation:', err)
+      console.error('[ChatHistory] Failed to create:', err)
       router.push('/dashboard/chat-ui-interface')
     }
   }
 
   const handleDeleteConversation = async (conversationId: string) => {
     if (!user?.id) {
-      setError('You must be logged in to delete conversations')
+      setError('Authentication required')
       return
     }
 
     setDeleting(true)
     try {
-      const response = await fetch(`/api/conversations/${conversationId}`, {
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+      const url = `${baseUrl}/api/conversations/${conversationId}`
+      
+      const response = await fetch(url, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
           'x-user-id': user.id
-        }
+        },
+        credentials: 'include'
       })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to delete conversation')
+        throw new Error(errorData.error || 'Failed to delete')
       }
 
-      // Update local state
       setConversations(prev => prev.filter(conv => conv.id !== conversationId))
-      
-      // Notify other components
       window.dispatchEvent(new Event('chatHistoryUpdated'))
       
-      console.log('Conversation deleted successfully')
+      console.log('[ChatHistory] Deleted successfully')
     } catch (err) {
-      console.error('Failed to delete conversation:', err)
-      setError(err instanceof Error ? err.message : 'Failed to delete conversation')
+      console.error('[ChatHistory] Delete failed:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete')
     } finally {
       setDeleting(false)
       setDeleteDialogOpen(false)
@@ -299,44 +271,41 @@ export function ChatHistory() {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (err) {
-      console.error('Failed to export conversation:', err)
+      console.error('[ChatHistory] Export failed:', err)
     }
   }
 
   const handleDeleteAllConversations = async () => {
     if (!user?.id) {
-      setError('You must be logged in to delete conversations')
+      setError('Authentication required')
       return
     }
 
     setDeleting(true)
     try {
-      // Delete conversations one by one
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+      
       const deletePromises = conversations.map(conv => 
-        fetch(`/api/conversations/${conv.id}`, {
+        fetch(`${baseUrl}/api/conversations/${conv.id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
             'x-user-id': user.id
-          }
+          },
+          credentials: 'include'
         })
       )
 
       await Promise.all(deletePromises)
       
-      // Clear local state
       setConversations([])
       setFilteredConversations([])
-      
-      // Notify other components
       window.dispatchEvent(new Event('chatHistoryUpdated'))
       
-      console.log('All conversations deleted successfully')
+      console.log('[ChatHistory] All deleted successfully')
     } catch (err) {
-      console.error('Failed to delete all conversations:', err)
-      setError(err instanceof Error ? err.message : 'Failed to delete all conversations')
-      
-      // Refresh to get current state
+      console.error('[ChatHistory] Delete all failed:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete all')
       await fetchConversations()
     } finally {
       setDeleting(false)
@@ -346,21 +315,9 @@ export function ChatHistory() {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-full items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/10 via-transparent to-purple-600/10"></div>
-        <div className="absolute top-20 left-20 w-32 h-32 bg-cyan-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-40 h-40 bg-purple-500/15 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        
-        <div className="relative z-10 text-center">
-          <div className="relative mb-6">
-            <Loader2 className="h-12 w-12 animate-spin text-cyan-400 mx-auto" />
-            <div className="absolute inset-0 bg-cyan-400/20 rounded-full blur-lg animate-pulse"></div>
-          </div>
-          <p className="text-xl font-medium bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent mb-2">
-            Loading conversations...
-          </p>
-          <p className="text-sm text-slate-400">Please wait while we fetch your chat history</p>
-        </div>
+      <div className="flex flex-col h-full items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <Loader2 className="h-12 w-12 animate-spin text-cyan-400 mb-4" />
+        <p className="text-xl font-medium text-cyan-400">Loading conversations...</p>
       </div>
     )
   }
@@ -376,48 +333,28 @@ export function ChatHistory() {
 
   if (error) {
     return (
-      <div className="flex flex-col h-full items-center justify-center bg-gradient-to-br from-slate-900 via-red-900/20 to-slate-900 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 via-transparent to-pink-600/10"></div>
-        
-        <div className="relative z-10 text-center">
-          <div className="relative mb-6">
-            <MessageCircle className="h-16 w-16 text-red-400 mx-auto" />
-            <div className="absolute inset-0 bg-red-400/20 rounded-full blur-lg animate-pulse"></div>
-          </div>
-          <h3 className="text-xl font-medium text-red-400 mb-2">{error}</h3>
-          <p className="text-slate-400 mb-6">
-            We couldn't load your conversations. Please try again.
-          </p>
-          <Button 
-            onClick={fetchConversations}
-            className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-400 hover:to-pink-400 border-0 shadow-lg hover:shadow-red-500/25"
-          >
-            <Search className="h-4 w-4 mr-2" />
-            Retry
-          </Button>
-        </div>
+      <div className="flex flex-col h-full items-center justify-center bg-gradient-to-br from-slate-900 via-red-900/20 to-slate-900">
+        <MessageCircle className="h-16 w-16 text-red-400 mb-4" />
+        <h3 className="text-xl font-medium text-red-400 mb-2">{error}</h3>
+        <p className="text-slate-400 mb-6">Please try again</p>
+        <Button onClick={fetchConversations}>
+          <Search className="h-4 w-4 mr-2" />
+          Retry
+        </Button>
       </div>
     )
   }
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
-      {/* Animated Background Effects */}
-      <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/5 via-transparent to-purple-600/5"></div>
-      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl animate-pulse"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/8 rounded-full blur-3xl animate-pulse delay-1000"></div>
-
-      {/* Content */}
       <div className="relative z-10 flex flex-col h-full p-6">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div className="relative">
+          <div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 bg-clip-text text-transparent mb-2">
               Chat History
             </h1>
-            <div className="absolute -bottom-1 left-0 w-20 h-1 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full"></div>
             <p className="text-slate-400 mt-3">
-              Manage and browse your {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
+              {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -426,30 +363,25 @@ export function ChatHistory() {
                 variant="destructive" 
                 onClick={() => setDeleteAllDialogOpen(true)}
                 disabled={deleting}
-                className="relative group bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 border-0 shadow-lg hover:shadow-red-500/25 transition-all duration-300 hover:scale-105"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                <span>Delete All</span>
+                Delete All
               </Button>
             )}
-            <Button 
-              onClick={handleNewChat} 
-              className="relative group bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 border-0 shadow-lg hover:shadow-cyan-500/25 transition-all duration-300 hover:scale-105"
-            >
+            <Button onClick={handleNewChat}>
               <Plus className="h-4 w-4 mr-2" />
-              <span>New Chat</span>
+              New Chat
               <Sparkles className="h-3 w-3 ml-2" />
             </Button>
           </div>
         </div>
 
-        {/* Search and Filters */}
         <div className="flex items-center gap-4 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
-              placeholder="Search conversations and messages..."
-              className="pl-12 bg-slate-800/50 border-slate-700/50 text-slate-100 placeholder-slate-400 focus:border-cyan-500/50 focus:ring-cyan-500/20"
+              placeholder="Search conversations..."
+              className="pl-12 bg-slate-800/50 border-slate-700/50"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -457,15 +389,11 @@ export function ChatHistory() {
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="icon"
-                className="bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-700/50"
-              >
+              <Button variant="outline" size="icon">
                 <Filter className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-slate-800/95 border-slate-700/50">
+            <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setSortBy('newest')}>
                 <Clock className="h-4 w-4 mr-2" />
                 Newest First
@@ -482,15 +410,14 @@ export function ChatHistory() {
           </DropdownMenu>
         </div>
 
-        {/* Conversations List */}
         <Card className="flex-1 overflow-hidden bg-slate-800/30 border-slate-700/50">
           <CardHeader className="border-b border-slate-700/50">
-            <CardTitle className="flex items-center justify-between text-slate-200">
+            <CardTitle className="flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <MessageCircle className="h-5 w-5 text-cyan-400" />
                 Recent Conversations
               </span>
-              <Badge variant="secondary" className="bg-gradient-to-r from-cyan-500/20 to-purple-500/20">
+              <Badge variant="secondary">
                 {filteredConversations.length}
               </Badge>
             </CardTitle>
@@ -498,14 +425,14 @@ export function ChatHistory() {
           <CardContent className="p-0">
             {filteredConversations.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-96 p-8 text-center">
-                <MessageCircle className="h-20 w-20 text-slate-500 mx-auto mb-6" />
+                <MessageCircle className="h-20 w-20 text-slate-500 mb-6" />
                 <h3 className="text-2xl font-medium text-slate-300 mb-3">
                   {searchTerm ? 'No matching conversations' : 'No conversations yet'}
                 </h3>
                 <p className="text-slate-400 mb-8">
                   {searchTerm 
                     ? 'Try adjusting your search terms'
-                    : 'Start your first conversation by clicking "New Chat"'
+                    : 'Start your first conversation'
                   }
                 </p>
                 <Button onClick={searchTerm ? () => setSearchTerm('') : handleNewChat}>
@@ -606,13 +533,12 @@ export function ChatHistory() {
         </Card>
       </div>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Conversation</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this conversation? This action cannot be undone.
+              This action cannot be undone. The conversation will be permanently deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -633,13 +559,12 @@ export function ChatHistory() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete All Confirmation Dialog */}
       <AlertDialog open={deleteAllDialogOpen} onOpenChange={setDeleteAllDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete All Conversations</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete ALL {conversations.length} conversations? This action cannot be undone.
+              Delete all {conversations.length} conversations? This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -217,10 +217,10 @@ export default function Sidebar() {
       <div className={`relative z-10 px-3 pb-4 flex-1 overflow-hidden ${collapsed ? 'hidden' : ''}`}>
         <div className="relative">
           {/* Section Header */}
-          <div className="mb-3 px-2">
+          {/* <div className="mb-3 px-2">
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Recent Chats</h3>
             <div className="mt-1 h-px bg-gradient-to-r from-slate-600 via-slate-500 to-transparent"></div>
-          </div>
+          </div> */}
           
           {/* Chat History Container with Custom Scrollbar */}
           <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent hover:scrollbar-thumb-slate-500">
