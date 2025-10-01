@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode } from 'react'
+import { ReactNode, useEffect } from 'react'
 import { Navbar } from './Navbar'
 import { Footer } from './Footer'
 import { usePathname } from 'next/navigation'
@@ -17,6 +17,18 @@ export function Layout({ children }: LayoutProps) {
   
   // Hide navbar and footer on help pages
   const isHelpPage = pathname?.startsWith('/userprofile/help')
+  
+  // Scroll to top when pathname changes
+  useEffect(() => {
+    // Scroll to top of page when route changes
+    window.scrollTo(0, 0)
+    
+    // Also try to scroll the main element if it exists
+    const mainElement = document.querySelector('main')
+    if (mainElement) {
+      mainElement.scrollTop = 0
+    }
+  }, [pathname])
 
   return (
     <div className="flex flex-col min-h-screen bg-background">

@@ -206,7 +206,8 @@ export default function AdvancedFeaturesSection() {
   }
 
   return (
-    <section className="relative py-24 bg-gradient-to-br from-gray-50 via-white to-blue-50 overflow-hidden">
+    // Changed py-24 to py-16 to reduce height
+    <section className="relative py-16 bg-gradient-to-br from-gray-50 via-white to-blue-50 overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-pulse"></div>
@@ -224,7 +225,7 @@ export default function AdvancedFeaturesSection() {
 
       <div className="container mx-auto px-4 relative z-10">
         {/* Header Section */}
-        <div className="text-center mb-20">
+        <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm border border-gray-200 px-6 py-3 rounded-full mb-8 shadow-lg">
             <Sparkles className="h-4 w-4 text-yellow-500" />
             <span className="text-sm font-semibold text-gray-700 tracking-wide">ADVANCED AI FEATURES</span>
@@ -267,7 +268,7 @@ export default function AdvancedFeaturesSection() {
         </div>
 
         {/* Active Category Header */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-12">
           <h3 className="text-3xl font-bold text-gray-900 mb-4">
             {categories[activeCategory].title}
           </h3>
@@ -335,7 +336,7 @@ export default function AdvancedFeaturesSection() {
         </div>
 
         {/* Bottom CTA */}
-        <div className="text-center mt-20">
+        <div className="text-center mt-16">
           <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-3xl p-8 max-w-3xl mx-auto shadow-xl">
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
               Ready to Experience Next-Gen AI?

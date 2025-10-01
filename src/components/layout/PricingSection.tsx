@@ -63,13 +63,14 @@ export function PricingSection() {
   ]
 
   return (
-    <section id="pricing" className="container mx-auto px-4 py-20 md:py-28 relative">
+    // Changed py-20 md:py-28 to py-16 md:py-20 to reduce height
+    <section id="pricing" className="container mx-auto px-4 py-16 md:py-20 relative">
       <div className="absolute inset-0 -z-10">
         <div className="absolute top-0 left-1/3 w-80 h-80 bg-primary/5 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 right-1/3 w-80 h-80 bg-secondary/5 rounded-full blur-3xl"></div>
       </div>
       
-      <div className="text-center mb-20">
+      <div className="text-center mb-16">
         <motion.h2 
           className="text-3xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent"
           initial={{ opacity: 0, y: 20 }}

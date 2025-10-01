@@ -94,7 +94,8 @@ export function TestimonialsSection() {
   }
 
   return (
-    <section id="testimonials" className="relative py-24 md:py-32 bg-gradient-to-b from-slate-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 overflow-hidden">
+    // Changed py-24 md:py-32 to py-16 md:py-24 to reduce height
+    <section id="testimonials" className="relative py-16 md:py-24 bg-gradient-to-b from-slate-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 overflow-hidden">
       {/* Advanced Background Effects */}
       <div className="absolute inset-0 -z-10">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
@@ -104,7 +105,7 @@ export function TestimonialsSection() {
 
       <div className="container mx-auto px-4 relative z-10">
         {/* Header Section */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-12">
           <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 border border-blue-200/50 dark:border-purple-500/30 mb-6">
             <Star className="h-4 w-4 text-yellow-500 mr-2 fill-current" />
             <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
@@ -128,7 +129,7 @@ export function TestimonialsSection() {
         </div>
 
         {/* Stats Bar */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-20 max-w-5xl mx-auto">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16 max-w-5xl mx-auto">
           {stats.map((stat, index) => {
             const Icon = stat.icon
             return (
@@ -284,7 +285,7 @@ export function TestimonialsSection() {
         </div>
 
         {/* Call to Action */}
-        <div className="text-center mt-16 pt-12 border-t border-gray-200/50 dark:border-gray-700/50">
+        <div className="text-center mt-12 pt-8 border-t border-gray-200/50 dark:border-gray-700/50">
           <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">
             Join these industry leaders and transform your business today
           </p>

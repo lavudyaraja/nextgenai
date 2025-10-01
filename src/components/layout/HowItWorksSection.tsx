@@ -53,11 +53,12 @@ export function HowItWorksSection() {
   ]
 
   return (
-    <section id="how-it-works" className="py-24 md:py-32 bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-gray-900 dark:via-gray-900 dark:to-blue-950/10">
+    // Changed py-24 md:py-32 to py-16 md:py-24 to reduce height
+    <section id="how-it-works" className="py-16 md:py-24 bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-gray-900 dark:via-gray-900 dark:to-blue-950/10">
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <motion.div 
-          className="text-center mb-20"
+          className="text-center mb-16"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
@@ -95,7 +96,7 @@ export function HowItWorksSection() {
         
         {/* Steps */}
         <motion.div 
-          className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-24 max-w-7xl mx-auto"
+          className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16 max-w-7xl mx-auto"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-50px" }}
@@ -162,7 +163,7 @@ export function HowItWorksSection() {
 
         {/* Benefits Section */}
         <motion.div 
-          className="mb-16"
+          className="mb-12"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}

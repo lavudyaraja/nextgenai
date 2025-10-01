@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Send, Bot, User, Plus, Mic, Copy, Search, Image, FileText, Globe, ThumbsUp, ThumbsDown, Sparkles } from 'lucide-react'
+import { Send, Bot, User, Plus, Mic, Copy, Search, Image, FileText, Globe, ThumbsUp, ThumbsDown, Sparkles, Loader2 } from 'lucide-react'
 import { ArrowRight, Zap, Shield, Layers } from 'lucide-react'
 
 import {
@@ -527,37 +527,12 @@ export default function ChatUIInterface() {
     }
   }
 
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputValue(e.target.value)
-  }, [])
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      if (inputValue.trim() && !isLoading) {
-        handleSubmit(e as unknown as React.FormEvent)
-      }
-    }
-  }, [inputValue, isLoading])
-
   return (
-    <div className="flex flex-col h-screen max-w-4xl mx-auto relative">
-      {/* Messages - Scrollable Area */}
-      <div className="flex-1 overflow-hidden pb-4">
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto">
         <ScrollArea className="h-full">
-          <div className="p-4 space-y-4" key={`messages-container-${messages.length}`}>
-            {/* Show error message if there is an error */}
-            {error && (
-              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-destructive">
-                <p className="font-medium">Error:</p>
-                <p>{error}</p>
-              </div>
-            )}
-            
-            {/* Show feature cards when there are no messages */}
-            {messages.length === 0 && !isLoading && !error && <FeatureCards />}
-            
-            {messages.map((message) => (
+          <div className="p-4">
+            {messages.map(message => (
               <MessageItem
                 key={message.id}
                 message={message}
@@ -573,8 +548,9 @@ export default function ChatUIInterface() {
                     <Bot className="h-4 w-4" />
                   </AvatarFallback>
                 </Avatar>
-                <div className="max-w-[80%] px-4 py-3 rounded-2xl bg-muted rounded-bl-md">
-                  <p className="text-sm text-muted-foreground">Thinking...</p>
+                <div className="max-w-[80%] px-4 py-3 rounded-2xl bg-muted rounded-bl-md flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <p className="text-sm text-muted-foreground">AI is thinking...</p>
                 </div>
               </div>
             )}
@@ -582,90 +558,33 @@ export default function ChatUIInterface() {
           </div>
         </ScrollArea>
       </div>
-
-      {/* Input - Fixed at Bottom */}
-      <div 
-        ref={inputContainerRef}
-        className="sticky bottom-0 left-0 right-0 bg-background border-t p-4 z-10"
-      >
-        <form onSubmit={handleSubmit} className="flex items-end gap-2">
-          <div className="flex-1 relative">
-            <Textarea
-              ref={textareaRef}
-              value={inputValue}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Type your message..."
-              className="min-h-[80px] resize-none py-4 pl-12 pr-32 rounded-2xl border-2 focus:border-primary/50 transition-colors leading-relaxed overflow-hidden"
-              disabled={isLoading}
-              rows={1}
-              style={{ height: '80px' }}
-            />
-            
-            {/* Plus Icon with Dropdown */}
-            <div className="absolute left-3 bottom-4">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <DropdownMenuItem onSelect={() => console.log('Research selected')}>
-                    <Search className="h-4 w-4 mr-2" />
-                    Research
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => console.log('Image selected')}>
-                    <Image className="h-4 w-4 mr-2" />
-                    Image
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => console.log('PDF selected')}>
-                    <FileText className="h-4 w-4 mr-2" />
-                    PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => console.log('Web search selected')}>
-                    <Globe className="h-4 w-4 mr-2" />
-                    Web Search
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            
-            {/* Model Selection - Hidden on mobile */}
-            <div className="absolute right-12 bottom-4 hidden sm:block">
-              <Select value={selectedModel} onValueChange={setSelectedModel}>
-                <SelectTrigger className="w-[100px] h-8">
-                  <SelectValue placeholder="Model" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="gpt">GPT</SelectItem>
-                  <SelectItem value="gemini">Gemini</SelectItem>
-                  <SelectItem value="claude">Claude</SelectItem>
-                  <SelectItem value="openrouter">OpenRouter</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {/* Voice Icon */}
-            <div className="absolute right-3 bottom-4">
-              <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
-                <Mic className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          
+      <div className="border-t">
+        <div className="flex items-center gap-2 p-4">
+          <Select value={selectedModel} onValueChange={setSelectedModel}>
+            <SelectTrigger className="w-24">
+              <SelectValue placeholder="Model" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="gpt">GPT</SelectItem>
+              <SelectItem value="claude">Claude</SelectItem>
+              <SelectItem value="gemini">Gemini</SelectItem>
+            </SelectContent>
+          </Select>
+          <Textarea
+            ref={textareaRef}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder="Type a message..."
+            className="flex-1"
+          />
           <Button
             type="submit"
-            disabled={!inputValue.trim() || isLoading}
-            size="icon"
-            className="h-12 w-12 rounded-full flex-shrink-0"
+            onClick={handleSubmit}
+            disabled={isLoading}
           >
-            <Send className="h-5 w-5" />
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
-        </form>
-        <p className="text-xs text-muted-foreground mt-2 text-center">
-          AI Assistant may produce inaccurate information about people, places, or facts • Using {selectedModel.toUpperCase()} model
-        </p>
+        </div>
       </div>
     </div>
   )

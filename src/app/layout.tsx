@@ -89,6 +89,22 @@ function LoadingFallback() {
   );
 }
 
+// Component to handle scroll restoration
+function ScrollRestoration() {
+  // This will scroll to top on initial load
+  if (typeof window !== 'undefined') {
+    // Scroll to top immediately
+    window.scrollTo(0, 0);
+    
+    // Also scroll to top after a short delay to handle any async content
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+    }, 100);
+  }
+  
+  return null;
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -126,6 +142,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-slate-900`}
         suppressHydrationWarning
       >
+        <ScrollRestoration />
         <PerformanceMonitor />
         <Suspense fallback={<LoadingFallback />}>
           <AuthProvider>

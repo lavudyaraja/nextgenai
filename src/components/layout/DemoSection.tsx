@@ -82,7 +82,8 @@ export default function DemoSection() {
   ]
 
   return (
-    <section className="relative min-h-screen bg-white overflow-hidden">
+    // Changed min-h-screen to min-h-[calc(100vh-4rem)] to prevent scroll jumping
+    <section className="relative min-h-[calc(100vh-4rem)] bg-white overflow-hidden">
       {/* Animated Background Elements */}
       <div className="absolute inset-0">
         {/* Subtle Gradient Orbs */}

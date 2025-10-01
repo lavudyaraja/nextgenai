@@ -20,7 +20,8 @@ export function HeroSection() {
   const [hoveredFeature, setHoveredFeature] = useState(null)
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-blue-950">
+    // Changed min-h-screen to min-h-[calc(100vh-4rem)] to prevent scroll jumping
+    <section className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-blue-950">
       {/* Enhanced Background Elements */}
       <div className="absolute inset-0 -z-10">
         {/* Main gradient orbs */}

@@ -10,7 +10,8 @@ import { itemVariants, fadeInVariant } from '@/lib/animation-utils'
 
 export function CallToActionSection() {
   return (
-    <section className="container mx-auto px-4 py-20 md:py-28 relative overflow-hidden">
+    // Changed py-20 md:py-28 to py-16 md:py-20 to reduce height
+    <section className="container mx-auto px-4 py-16 md:py-20 relative overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0 -z-10">
         <div className="absolute top-0 left-1/3 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-pulse"></div>
@@ -20,7 +21,7 @@ export function CallToActionSection() {
       <div className="max-w-6xl mx-auto">
         {/* Main CTA */}
         <motion.div 
-          className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-3xl p-1 backdrop-blur-sm border border-primary/20 mb-20 relative overflow-hidden"
+          className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-3xl p-1 backdrop-blur-sm border border-primary/20 mb-16 relative overflow-hidden"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -68,7 +69,7 @@ export function CallToActionSection() {
 
         {/* Newsletter CTA */}
         <motion.div 
-          className="max-w-3xl mx-auto text-center border-t border-primary/20 pt-20 relative"
+          className="max-w-3xl mx-auto text-center border-t border-primary/20 pt-16 relative"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}

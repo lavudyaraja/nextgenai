@@ -26,12 +26,19 @@ interface Conversation {
 function getUserIdFromRequest(request: NextRequest): string | null {
   // Try to get user ID from headers
   const userId = request.headers.get('x-user-id')
-  return userId || 'default-user' // Fallback to default user if not provided
+  
+  // If no user ID in headers, this is an error case - don't fallback to default user in production
+  if (!userId) {
+    console.error('No user ID found in request headers')
+    return null
+  }
+  
+  return userId
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, conversationId } = await request.json()
+    const { messages, conversationId, model } = await request.json()
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 })
@@ -115,7 +122,7 @@ export async function POST(request: NextRequest) {
 
     // Get AI response
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: model || 'gpt-4o-mini', // Use the specified model or default to gpt-4o-mini
       messages: aiMessages,
       temperature: 0.7,
       max_tokens: 1000
@@ -156,7 +163,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Chat API error:', error)
     return NextResponse.json(
-      { error: 'Failed to get AI response' },
+      { error: 'Failed to get AI response', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     )
   }
