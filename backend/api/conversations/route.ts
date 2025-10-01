@@ -5,13 +5,29 @@ import { databaseService as db } from '@/lib/database-service'
 function getUserIdFromRequest(request: NextRequest): string | null {
   // Try to get user ID from headers
   const userId = request.headers.get('x-user-id')
-  return userId || 'default-user' // Fallback to default user if not provided
+  
+  // If no user ID in headers, this is an error case - don't fallback to default user in production
+  if (!userId) {
+    console.error('No user ID found in request headers')
+    return null
+  }
+  
+  return userId
 }
 
 export async function GET(request: NextRequest) {
   try {
     // Get the user ID from the request
     const userId = getUserIdFromRequest(request)
+    
+    // If no user ID, return unauthorized
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid user ID found' },
+        { status: 401 }
+      )
+    }
+    
     console.log('Fetching conversations for user:', userId)
     
     const conversations = await db.conversation.findMany({
@@ -46,6 +62,14 @@ export async function POST(request: NextRequest) {
     
     // Get the user ID from the request
     const userId = getUserIdFromRequest(request)
+    
+    // If no user ID, return unauthorized
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid user ID found' },
+        { status: 401 }
+      )
+    }
     
     // Handle delete all action
     if (action === 'deleteAll') {

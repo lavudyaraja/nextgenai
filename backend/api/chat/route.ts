@@ -153,6 +153,12 @@ export async function POST(request: NextRequest) {
           })
         }
       }
+      
+      // Update conversation timestamp
+      await db.conversation.update({
+        where: { id: conversation.id },
+        data: { updatedAt: new Date() }
+      })
     }
 
     return NextResponse.json({

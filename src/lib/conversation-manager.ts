@@ -54,7 +54,7 @@ export const createNewConversation = async (title?: string): Promise<{ id: strin
     // Use API call in browser environment
     try {
       // Get user ID from localStorage (in a real app, you might want to use a more secure method)
-      let userId = 'default-user'
+      let userId = null
       try {
         const storedUser = localStorage.getItem('user')
         if (storedUser) {
@@ -79,13 +79,10 @@ export const createNewConversation = async (title?: string): Promise<{ id: strin
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': userId
+          'x-user-id': userId || 'default-user'
         },
         body: JSON.stringify({
-          title: conversationTitle,
-          userId: userId,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          title: conversationTitle
         }),
       })
       
@@ -97,7 +94,9 @@ export const createNewConversation = async (title?: string): Promise<{ id: strin
       const conversation = await response.json()
       console.log('Created conversation via API:', conversation.id)
       // Dispatch event to update sidebar
-      window.dispatchEvent(new Event('chatHistoryUpdated'))
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('chatHistoryUpdated'))
+      }
       return { id: conversation.id, title: conversation.title || undefined }
     } catch (error) {
       console.error('Failed to create conversation via API:', error)

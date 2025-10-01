@@ -101,7 +101,7 @@ export function SidebarChatHistory() {
           // Use first user message as title, or fall back to a generic title
           const title = firstUserMessage 
             ? firstUserMessage.content.substring(0, 40) + (firstUserMessage.content.length > 40 ? '...' : '')
-            : 'New Conversation'
+            : conv.title || 'New Conversation'
 
           return {
             id: conv.id,
@@ -114,7 +114,7 @@ export function SidebarChatHistory() {
         .filter((item: ChatItem) => {
           const conversation = conversationsArray.find((conv: any) => conv.id === item.id)
           if (conversation && Array.isArray(conversation.messages)) {
-            // Only show conversations that have at least one user message
+            // Show conversations that have at least one user message
             return conversation.messages.some((msg: any) => msg.role === 'user')
           }
           return false

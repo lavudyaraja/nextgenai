@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Send, Bot, User, Plus, Mic, Copy, Search, Image, FileText, Globe, ThumbsUp, ThumbsDown, Sparkles, Loader2 } from 'lucide-react'
-import { ArrowRight, Zap, Shield, Layers } from 'lucide-react'
+import { ArrowRight, Zap, Shield } from 'lucide-react'
 
 import {
   DropdownMenu,
@@ -120,7 +120,7 @@ const MessageItem = memo(({
   }, [message.content, onCopy])
 
   return (
-    <div className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'} group`} key={message.id}>
+    <div className={`flex gap-3 w-full ${message.role === 'user' ? 'justify-end' : 'justify-start'} group`}>
       {message.role === 'assistant' && (
         <Avatar className="h-8 w-8 flex-shrink-0">
           <AvatarFallback className="bg-primary/10">
@@ -129,9 +129,9 @@ const MessageItem = memo(({
         </Avatar>
       )}
       
-      <div className={`max-w-[80%] rounded-lg p-3 contain-layout ${
+      <div className={`max-w-[85%] rounded-lg p-4 ${
         message.role === 'user'
-          ? 'bg-primary text-primary-foreground ml-auto'
+          ? 'bg-primary text-primary-foreground'
           : 'bg-muted'
       }`}>
         {renderMessageContent}
@@ -181,120 +181,79 @@ MessageItem.displayName = 'MessageItem'
 
 const FeatureCards = () => {
   return (
-    <div className="w-full bg-black relative overflow-hidden p-8">
-      {/* Animated Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-950/40 via-black to-cyan-950/40"></div>
+    <div className="w-full max-w-5xl mx-auto px-8 py-12">
+      <div className="text-center mb-12">
+        <h2 className="text-3xl font-bold mb-3 bg-gradient-to-r from-purple-600 to-cyan-600 bg-clip-text text-transparent">
+          Powerful AI Features
+        </h2>
+        <p className="text-muted-foreground">
+          Experience next-generation AI capabilities
+        </p>
+      </div>
       
-      {/* Moving Gradient Orbs */}
-      {/* <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div> */}
-      {/* <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-cyan-500/15 rounded-full blur-3xl animate-pulse delay-1000"></div> */}
-      {/* <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl animate-pulse delay-2000"></div> */}
-      
-      {/* Floating Particles */}
-      <div className="absolute top-20 left-20 w-2 h-2 bg-purple-400/60 rounded-full animate-bounce"></div>
-      <div className="absolute top-40 right-32 w-1 h-1 bg-cyan-400/60 rounded-full animate-ping"></div>
-      <div className="absolute bottom-32 left-16 w-3 h-3 bg-amber-400/40 rounded-full animate-pulse"></div>
-      <div className="absolute bottom-40 right-20 w-1.5 h-1.5 bg-purple-300/50 rounded-full animate-bounce delay-500"></div>
-      
-      {/* Content Container */}
-      <div className="relative z-10">
-        <div className="max-w-6xl mx-auto">
-          
-          {/* Main Feature Cards Grid - Square Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-8 mb-12">
-            {/* Card 1 - Multi-AI Models */}
-            <div className="group relative overflow-hidden bg-gradient-to-br from-purple-950/60 via-purple-900/40 to-violet-950/60 border border-purple-500/30 rounded-3xl backdrop-blur-2xl hover:border-purple-400/60 transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/30 shadow-lg shadow-purple-900/20 bg-opacity-80 backdrop-saturate-150 aspect-square flex flex-col p-6">
-              {/* Subtle pattern overlay */}
-              <div className="absolute inset-0 opacity-20">
-                <div className="absolute inset-0" style={{
-                  backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255, 255, 255, 0.1) 1px, transparent 0)`,
-                  backgroundSize: '30px 30px'
-                }}></div>
-              </div>
-              
-              {/* Floating Particles Effect */}
-              <div className="absolute top-4 right-4 w-2 h-2 bg-purple-400 rounded-full opacity-60 animate-pulse"></div>
-              <div className="absolute bottom-6 left-6 w-1 h-1 bg-purple-300 rounded-full opacity-40 animate-bounce"></div>
-              
-              <div className="relative z-10 flex flex-col h-full justify-between">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 p-3 rounded-2xl backdrop-blur-sm border border-purple-400/30 group-hover:border-purple-300/50 transition-colors duration-300">
-                    <Bot className="h-7 w-7 text-purple-400 group-hover:text-purple-300 transition-colors duration-300" />
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-purple-400/60 group-hover:text-purple-300 group-hover:translate-x-1 transition-all duration-300" />
-                </div>
-                
-                <div className="flex-1 flex flex-col justify-center">
-                  <h3 className="text-xl font-bold bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent mb-3 group-hover:from-purple-200 group-hover:to-pink-200 transition-all duration-300">
-                    Multi-AI Models
-                  </h3>
-                  
-                  <p className="text-purple-100/70 text-sm leading-relaxed mb-4 group-hover:text-purple-100/90 transition-colors duration-300">
-                    Seamlessly switch between GPT, Claude, and Gemini with intelligent model selection for optimal results.
-                  </p>
-                </div>
-              </div>
-              
-              {/* Hover Glow Effect */}
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-purple-500/0 via-purple-500/5 to-pink-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Card 1 - Multi-AI Models */}
+        <div className="group relative overflow-hidden bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/30 dark:to-purple-900/20 border border-purple-200 dark:border-purple-800/50 rounded-2xl p-6 hover:shadow-lg transition-all duration-300">
+          <div className="flex items-center justify-between mb-4">
+            <div className="bg-purple-500/10 p-3 rounded-xl">
+              <Bot className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
-
-            {/* Card 2 - Web Integration */}
-            <div className="group relative overflow-hidden bg-gradient-to-br from-cyan-950/60 via-blue-900/40 to-indigo-950/60 border border-cyan-500/30 rounded-3xl backdrop-blur-2xl hover:border-cyan-400/60 transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-cyan-500/30 shadow-lg shadow-cyan-900/20 aspect-square flex flex-col p-6">
-              <div className="relative z-10 flex flex-col h-full justify-between">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 p-3 rounded-2xl backdrop-blur-sm border border-cyan-400/30 group-hover:border-cyan-300/50 transition-colors duration-300">
-                    <Globe className="h-7 w-7 text-cyan-400 group-hover:text-cyan-300 transition-colors duration-300" />
-                  </div>
-                  <Zap className="h-4 w-4 text-cyan-400/60 group-hover:text-cyan-300 group-hover:rotate-12 transition-all duration-300" />
-                </div>
-                
-                <div className="flex-1 flex flex-col justify-center">
-                  <h3 className="text-xl font-bold bg-gradient-to-r from-cyan-300 to-blue-300 bg-clip-text text-transparent mb-3 group-hover:from-cyan-200 group-hover:to-blue-200 transition-all duration-300">
-                    Web Integration
-                  </h3>
-                  
-                  <p className="text-cyan-100/70 text-sm leading-relaxed mb-4 group-hover:text-cyan-100/90 transition-colors duration-300">
-                    Real-time web research and content analysis with intelligent data extraction and summarization.
-                  </p>
-                </div>
-                
-              </div>
-            </div>
-
-            {/* Card 3 - Smart Features */}
-            <div className="group relative overflow-hidden bg-gradient-to-br from-amber-950/60 via-orange-900/40 to-yellow-950/60 border border-amber-500/30 rounded-3xl backdrop-blur-2xl hover:border-amber-400/60 transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-amber-500/30 shadow-lg shadow-amber-900/20 aspect-square flex flex-col p-6">
-              <div className="relative z-10 flex flex-col h-full justify-between">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 p-3 rounded-2xl backdrop-blur-sm border border-amber-400/30 group-hover:border-amber-300/50 transition-colors duration-300">
-                    <Sparkles className="h-7 w-7 text-amber-400 group-hover:text-amber-300 transition-colors duration-300 group-hover:rotate-12" />
-                  </div>
-                  <Shield className="h-4 w-4 text-amber-400/60 group-hover:text-amber-300 transition-colors duration-300" />
-                </div>
-                
-                <div className="flex-1 flex flex-col justify-center">
-                  <h3 className="text-xl font-bold bg-gradient-to-r from-amber-300 to-orange-300 bg-clip-text text-transparent mb-3 group-hover:from-amber-200 group-hover:to-orange-200 transition-all duration-300">
-                    Smart Features
-                  </h3>
-                  
-                  <p className="text-amber-100/70 text-sm leading-relaxed mb-4 group-hover:text-amber-100/90 transition-colors duration-300">
-                    Advanced AI tools including code generation, document analysis, and intelligent automation workflows.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <ArrowRight className="h-4 w-4 text-purple-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
           </div>
+          
+          <h3 className="text-lg font-semibold mb-2 text-purple-900 dark:text-purple-100">
+            Multi-AI Models
+          </h3>
+          
+          <p className="text-sm text-purple-700/80 dark:text-purple-300/80 leading-relaxed">
+            Seamlessly switch between GPT, Claude, and Gemini with intelligent model selection for optimal results.
+          </p>
+        </div>
+
+        {/* Card 2 - Web Integration */}
+        <div className="group relative overflow-hidden bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-950/30 dark:to-cyan-900/20 border border-cyan-200 dark:border-cyan-800/50 rounded-2xl p-6 hover:shadow-lg transition-all duration-300">
+          <div className="flex items-center justify-between mb-4">
+            <div className="bg-cyan-500/10 p-3 rounded-xl">
+              <Globe className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+            </div>
+            <Zap className="h-4 w-4 text-cyan-400 opacity-0 group-hover:opacity-100 group-hover:rotate-12 transition-all duration-300" />
+          </div>
+          
+          <h3 className="text-lg font-semibold mb-2 text-cyan-900 dark:text-cyan-100">
+            Web Integration
+          </h3>
+          
+          <p className="text-sm text-cyan-700/80 dark:text-cyan-300/80 leading-relaxed">
+            Real-time web research and content analysis with intelligent data extraction and summarization.
+          </p>
+        </div>
+
+        {/* Card 3 - Smart Features */}
+        <div className="group relative overflow-hidden bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/30 dark:to-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-2xl p-6 hover:shadow-lg transition-all duration-300">
+          <div className="flex items-center justify-between mb-4">
+            <div className="bg-amber-500/10 p-3 rounded-xl">
+              <Sparkles className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+            </div>
+            <Shield className="h-4 w-4 text-amber-400 opacity-0 group-hover:opacity-100 transition-all duration-300" />
+          </div>
+          
+          <h3 className="text-lg font-semibold mb-2 text-amber-900 dark:text-amber-100">
+            Smart Features
+          </h3>
+          
+          <p className="text-sm text-amber-700/80 dark:text-amber-300/80 leading-relaxed">
+            Advanced AI tools including code generation, document analysis, and intelligent automation workflows.
+          </p>
         </div>
       </div>
     </div>
   )
 }
 
-// export default FeatureCards;
 export default function ChatUIInterface() {
   const searchParams = useSearchParams()
   const urlConversationId = searchParams.get('id')
-  const { user } = useAuth() // Get the current user from auth context
+  const { user } = useAuth()
   
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
@@ -302,12 +261,10 @@ export default function ChatUIInterface() {
   const [selectedModel, setSelectedModel] = useState('gpt')
   const [conversationId, setConversationId] = useState<string | null>(urlConversationId)
   const [initialLoadComplete, setInitialLoadComplete] = useState(false)
-  const [error, setError] = useState<string | null>(null) // Add error state
+  const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const inputContainerRef = useRef<HTMLDivElement>(null)
 
-  // Optimized scroll function with throttling
   const scrollToBottom = useCallback(
     performanceUtils.throttle(() => {
       if (messagesEndRef.current) {
@@ -317,7 +274,6 @@ export default function ChatUIInterface() {
     []
   )
 
-  // Optimized input resize with debouncing
   const resizeTextarea = useCallback(
     performanceUtils.debounce(() => {
       if (textareaRef.current) {
@@ -331,7 +287,6 @@ export default function ChatUIInterface() {
     []
   )
 
-  // Memoized handlers
   const handleLike = useCallback((messageId: string) => {
     setMessages(prev => prev.map(msg => 
       msg.id === messageId ? { ...msg, liked: !msg.liked, disliked: false } : msg
@@ -347,21 +302,17 @@ export default function ChatUIInterface() {
   const copyToClipboard = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
-      console.log('Copied to clipboard')
     } catch (err) {
       console.error('Failed to copy: ', err)
     }
   }, [])
 
-  // Load conversation messages when component mounts or conversationId changes
   useEffect(() => {
     const loadConversation = async () => {
-      // Always reset messages when URL changes
       setMessages([])
       setInitialLoadComplete(false)
       setError(null)
       
-      // Check if user is authenticated
       if (!user?.id) {
         setError('You must be logged in to view conversations')
         setInitialLoadComplete(true)
@@ -370,7 +321,6 @@ export default function ChatUIInterface() {
       
       if (urlConversationId) {
         try {
-          console.log('Loading conversation:', urlConversationId)
           const conversationMessages = await getMessagesByConversationId(urlConversationId)
           setMessages(conversationMessages)
           setConversationId(urlConversationId)
@@ -383,7 +333,6 @@ export default function ChatUIInterface() {
           setInitialLoadComplete(true)
         }
       } else {
-        // No conversation ID in URL, clear messages
         setMessages([])
         setConversationId(null)
         setInitialLoadComplete(true)
@@ -391,9 +340,8 @@ export default function ChatUIInterface() {
     }
 
     loadConversation()
-  }, [urlConversationId, user?.id]) // Depend on urlConversationId and user.id
+  }, [urlConversationId, user?.id])
 
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
     const scrollTimeout = setTimeout(() => {
       scrollToBottom()
@@ -402,7 +350,6 @@ export default function ChatUIInterface() {
     return () => clearTimeout(scrollTimeout)
   }, [messages, isLoading, scrollToBottom])
 
-  // Auto-resize textarea when input changes
   useEffect(() => {
     resizeTextarea()
   }, [inputValue, resizeTextarea])
@@ -411,7 +358,6 @@ export default function ChatUIInterface() {
     e.preventDefault()
     if (!inputValue.trim() || isLoading) return
 
-    // Check if user is authenticated
     if (!user?.id) {
       setError('You must be logged in to send messages')
       return
@@ -420,12 +366,10 @@ export default function ChatUIInterface() {
     const userMessageContent = inputValue.trim()
     setInputValue('')
 
-    // Reset textarea height after clearing input
     if (textareaRef.current) {
       textareaRef.current.style.height = '80px'
     }
 
-    // Create user message object with a unique ID
     const userMessageId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     const userMessage: Message = {
       id: userMessageId,
@@ -434,41 +378,33 @@ export default function ChatUIInterface() {
       timestamp: new Date(),
     }
 
-    // Add user message immediately to UI
     setMessages(prev => [...prev, userMessage])
     setIsLoading(true)
     setError(null)
 
     try {
-      // If this is a new conversation, create it first
       let currentConversationId = conversationId
       if (!currentConversationId) {
-        console.log('Creating new conversation...')
         const newConversation = await createNewConversation()
         currentConversationId = newConversation.id
         setConversationId(currentConversationId)
-        console.log('New conversation created:', currentConversationId)
         
-        // Update URL with new conversation ID
         if (typeof window !== 'undefined') {
           const url = new URL(window.location.href)
           url.searchParams.set('id', currentConversationId)
           window.history.replaceState({}, '', url.toString())
           
-          // Dispatch event to update sidebar chat history
           setTimeout(() => {
             window.dispatchEvent(new Event('chatHistoryUpdated'))
           }, 100)
         }
       }
 
-      // Call the AI API
-      console.log('Sending message to AI API for conversation:', currentConversationId)
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': user.id // Pass user ID in header
+          'x-user-id': user.id
         },
         body: JSON.stringify({
           messages: [{ role: 'user', content: userMessageContent }],
@@ -482,14 +418,11 @@ export default function ChatUIInterface() {
       }
 
       const data = await response.json()
-      console.log('Received response from AI API:', data)
 
-      // Update conversationId if it was newly created
       if (data.conversationId && !conversationId) {
         setConversationId(data.conversationId)
       }
 
-      // Add AI response to messages
       const aiMessageId = `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
       const aiMessage: Message = {
         id: aiMessageId,
@@ -498,17 +431,15 @@ export default function ChatUIInterface() {
         timestamp: new Date(),
       }
 
-      // Add AI message to the messages array
       setMessages(prev => [...prev, aiMessage])
 
-      // Dispatch event to update sidebar chat history
-      setTimeout(() => {
+      if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('chatHistoryUpdated'))
-      }, 100)
+      }
     } catch (error) {
       console.error('Error calling API:', error)
       setError(error instanceof Error ? error.message : 'Failed to get response from AI assistant')
-      // Handle error - add error message
+      
       const errorId = `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
       const errorMessage: Message = {
         id: errorId,
@@ -520,10 +451,9 @@ export default function ChatUIInterface() {
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
-      // Dispatch event to update sidebar chat history even in case of errors
-      setTimeout(() => {
+      if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('chatHistoryUpdated'))
-      }, 100)
+      }
     }
   }
 
@@ -531,59 +461,128 @@ export default function ChatUIInterface() {
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto">
         <ScrollArea className="h-full">
-          <div className="p-4">
-            {messages.map(message => (
-              <MessageItem
-                key={message.id}
-                message={message}
-                onLike={handleLike}
-                onDislike={handleDislike}
-                onCopy={copyToClipboard}
-              />
-            ))}
-            {isLoading && (
-              <div className="flex items-start gap-3">
-                <Avatar className="h-8 w-8 flex-shrink-0">
-                  <AvatarFallback className="bg-muted">
-                    <Bot className="h-4 w-4" />
-                  </AvatarFallback>
-                </Avatar>
-                <div className="max-w-[80%] px-4 py-3 rounded-2xl bg-muted rounded-bl-md flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <p className="text-sm text-muted-foreground">AI is thinking...</p>
-                </div>
+          {/* Show feature cards when no messages */}
+          {messages.length === 0 && !isLoading && initialLoadComplete && (
+            <div className="flex items-center justify-center min-h-full py-12">
+              <FeatureCards />
+            </div>
+          )}
+          
+          {/* Center the messages container to match textarea width */}
+          {(messages.length > 0 || isLoading) && (
+            <div className="flex justify-center p-4">
+              <div className="w-full max-w-3xl space-y-4">
+                {messages.map(message => (
+                  <MessageItem
+                    key={message.id}
+                    message={message}
+                    onLike={handleLike}
+                    onDislike={handleDislike}
+                    onCopy={copyToClipboard}
+                  />
+                ))}
+                {isLoading && (
+                  <div className="flex items-start gap-3 w-full">
+                    <Avatar className="h-8 w-8 flex-shrink-0">
+                      <AvatarFallback className="bg-muted">
+                        <Bot className="h-4 w-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="px-4 py-3 rounded-2xl bg-muted flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <p className="text-sm text-muted-foreground">AI is thinking...</p>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
               </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
+            </div>
+          )}
         </ScrollArea>
       </div>
-      <div className="border-t">
-        <div className="flex items-center gap-2 p-4">
-          <Select value={selectedModel} onValueChange={setSelectedModel}>
-            <SelectTrigger className="w-24">
-              <SelectValue placeholder="Model" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="gpt">GPT</SelectItem>
-              <SelectItem value="claude">Claude</SelectItem>
-              <SelectItem value="gemini">Gemini</SelectItem>
-            </SelectContent>
-          </Select>
-          <Textarea
-            ref={textareaRef}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1"
-          />
-          <Button
-            type="submit"
-            onClick={handleSubmit}
-            disabled={isLoading}
-          >
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
+      
+      <div className="border-t bg-background">
+        <div className="flex justify-center p-4">
+          <div className="relative flex items-center w-full max-w-3xl">
+            {/* Plus Icon with Dropdown Menu */}
+            <div className="absolute left-2 z-10">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuItem>
+                    <Image className="h-4 w-4 mr-2" />
+                    <span>Upload Image</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Search className="h-4 w-4 mr-2" />
+                    <span>Web Research</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <FileText className="h-4 w-4 mr-2" />
+                    <span>Upload PDF</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Globe className="h-4 w-4 mr-2" />
+                    <span>Resources</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            
+            {/* Textarea with padding to accommodate icons */}
+            <Textarea
+              ref={textareaRef}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSubmit(e)
+                }
+              }}
+              placeholder="Type a message..."
+              className="min-h-[80px] pl-12 pr-44 py-3 resize-none w-full"
+              disabled={isLoading}
+            />
+            
+            {/* Right side icons container */}
+            <div className="absolute right-2 z-10 flex items-center gap-2">
+              
+                    
+              {/* Voice Icon */}
+              <Button type="button" variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+                <Mic className="h-4 w-4" />
+              </Button>
+              
+              
+              {/* Model Selection */}
+              <Select value={selectedModel} onValueChange={setSelectedModel}>
+                <SelectTrigger className="w-24 h-9 text-xs">
+                  <SelectValue placeholder="Model" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gpt">GPT</SelectItem>
+                  <SelectItem value="claude">Claude</SelectItem>
+                  <SelectItem value="gemini">Gemini</SelectItem>
+                </SelectContent>
+              </Select>
+        
+              
+              {/* Send Button */}
+              <Button
+                type="submit"
+                disabled={isLoading || !inputValue.trim()}
+                className="h-9 w-9 rounded-full"
+                onClick={handleSubmit}
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

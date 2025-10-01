@@ -70,7 +70,16 @@ class DatabaseService {
 
     update: async (data: any): Promise<Conversation | null> => {
       try {
-        const result = await db.conversation.update(data)
+        // Ensure updatedAt is set to current time
+        const updateData = {
+          ...data,
+          data: {
+            ...data.data,
+            updatedAt: new Date()
+          }
+        };
+        
+        const result = await db.conversation.update(updateData)
         if (result) {
           console.log('DatabaseService: Updated conversation:', result.id)
         }
