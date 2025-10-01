@@ -38,7 +38,7 @@ export function UserProfile() {
   const handleLogout = async () => {
     try {
       await logout()
-      router.push('/login')
+      router.push('/')
     } catch (error) {
       console.error('Logout failed:', error)
     }
@@ -82,26 +82,26 @@ export function UserProfile() {
             {/* <ChevronRight className="ml-auto h-4 w-4" /> */}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-52">
-            <DropdownMenuItem onClick={() => router.push('/help/documents')}>
+            <DropdownMenuItem onClick={() => router.push('/userprofile/help/documents')}>
               <FileText className="mr-2 h-4 w-4" />
               <span>Documents</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push('/help/keyboard-shortcuts')}>
+            <DropdownMenuItem onClick={() => router.push('/userprofile/help/keyboard-shortcuts')}>
               <Keyboard className="mr-2 h-4 w-4" />
               <span>Keyboard Shortcuts</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push('/help/release-notes')}>
+            <DropdownMenuItem onClick={() => router.push('/userprofile/help/release-notes')}>
               <GitMerge className="mr-2 h-4 w-4" />
               <span>Release Notes</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {/* External links open in a new tab */}
-            <DropdownMenuItem onClick={() => openInNewTab('/help/privacy')}>
+            <DropdownMenuItem onClick={() => openInNewTab('/userprofile/help/privacy')}>
               <Shield className="mr-2 h-4 w-4" />
               <span>Privacy Policy</span>
               <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openInNewTab('/help/terms-policies')}>
+            <DropdownMenuItem onClick={() => openInNewTab('/userprofile/help/terms-policies')}>
               <FileBadge className="mr-2 h-4 w-4" />
               <span>Terms & Policies</span>
               <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />

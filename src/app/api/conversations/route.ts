@@ -30,19 +30,26 @@ function safeToISOString(date: any): string | null {
 
 // Helper function to get user ID from request (in a real app, this would validate a session/JWT)
 async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
+  console.log('Getting user ID from request')
+  
   // Try to get user ID from headers
   const userId = request.headers.get('x-user-id')
+  console.log('User ID from headers:', userId)
   
   // If not in headers, try to get from cookies
   if (!userId) {
     const cookieHeader = request.headers.get('cookie')
+    console.log('Cookie header:', cookieHeader)
     if (cookieHeader) {
       const cookies = cookieHeader.split(';').map(cookie => cookie.trim())
       const userCookie = cookies.find(cookie => cookie.startsWith('user='))
+      console.log('User cookie:', userCookie)
       if (userCookie) {
         try {
           const userJson = decodeURIComponent(userCookie.split('=')[1])
+          console.log('User JSON:', userJson)
           const user = JSON.parse(userJson)
+          console.log('Parsed user:', user)
           return user.id || null
         } catch (e) {
           console.error('Error parsing user cookie:', e)
@@ -51,6 +58,7 @@ async function getUserIdFromRequest(request: NextRequest): Promise<string | null
     }
   }
   
+  console.log('Final user ID:', userId)
   return userId
 }
 
@@ -140,35 +148,49 @@ export async function POST(request: NextRequest) {
     
     // Handle delete all action
     if (action === 'deleteAll') {
-      console.log('Deleting all conversations...')
+      console.log('Deleting all conversations for user:', userId)
       
-      // First get all conversations for the current user
-      const conversations = await db.conversation.findMany({
-        where: {
-          userId: userId
+      try {
+        // First get all conversations for the current user
+        const conversations = await db.conversation.findMany({
+          where: {
+            userId: userId
+          }
+        })
+        
+        console.log(`Found ${conversations.length} conversations to delete`)
+        
+        let deletedConversationsCount = 0;
+        
+        // Delete each conversation
+        for (const conversation of conversations) {
+          try {
+            await db.conversation.delete({
+              where: { id: conversation.id }
+            })
+            deletedConversationsCount++;
+            console.log(`Deleted conversation: ${conversation.id}`)
+          } catch (error) {
+            console.error(`Failed to delete conversation ${conversation.id}:`, error)
+          }
         }
-      })
-      
-      let deletedConversationsCount = 0;
-      
-      // Delete each conversation
-      for (const conversation of conversations) {
-        try {
-          await db.conversation.delete({
-            where: { id: conversation.id }
-          })
-          deletedConversationsCount++;
-        } catch (error) {
-          console.error(`Failed to delete conversation ${conversation.id}:`, error)
-        }
+        
+        console.log(`Deleted ${deletedConversationsCount} conversations`)
+        return NextResponse.json({ 
+          success: true, 
+          deletedConversations: deletedConversationsCount,
+          message: `Successfully deleted ${deletedConversationsCount} conversations`
+        })
+      } catch (error) {
+        console.error('Error deleting all conversations:', error)
+        return NextResponse.json(
+          { 
+            error: 'Failed to delete all conversations',
+            message: error instanceof Error ? error.message : 'Unknown error'
+          },
+          { status: 500 }
+        )
       }
-      
-      console.log(`Deleted ${deletedConversationsCount} conversations`)
-      return NextResponse.json({ 
-        success: true, 
-        deletedConversations: deletedConversationsCount,
-        message: `Successfully deleted ${deletedConversationsCount} conversations`
-      })
     }
     
     // Handle create conversation (default behavior)

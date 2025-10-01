@@ -10,17 +10,29 @@ import {
   Archive, 
   Download,
   MessageCircle,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from 'next/navigation'
 import { formatTime } from '@/lib/conversation-manager'
 import { useAuth } from '@/contexts/auth-context'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface ChatItem {
   id: string
@@ -36,6 +48,8 @@ export function SidebarChatHistory() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false)
+  const [conversationToDelete, setConversationToDelete] = useState<string | null>(null)
 
   // Fetch conversations from API
   const fetchConversations = async () => {
@@ -92,6 +106,15 @@ export function SidebarChatHistory() {
             timestamp: new Date(conv.updatedAt || conv.createdAt)
           }
         })
+        // Filter out conversations that don't have actual messages (only show conversations with user messages)
+        .filter((item: ChatItem) => {
+          const conversation = conversationsArray.find((conv: any) => conv.id === item.id)
+          if (conversation && Array.isArray(conversation.messages)) {
+            // Only show conversations that have at least one user message
+            return conversation.messages.some((msg: any) => msg.role === 'user')
+          }
+          return false
+        })
         // Sort by timestamp, newest first
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
 
@@ -112,7 +135,7 @@ export function SidebarChatHistory() {
     fetchConversations()
     
     // Listen for chat history updates
-    const handleChatHistoryUpdate = () => {
+    const handleChatHistoryUpdate = (event: Event) => {
       console.log('Received chatHistoryUpdated event')
       fetchConversations()
     }
@@ -152,6 +175,68 @@ export function SidebarChatHistory() {
   const handleDownload = (conversationId: string) => {
     console.log('Download conversation:', conversationId)
     // TODO: Implement download functionality
+  }
+
+  const handleDelete = async (conversationId: string) => {
+    try {
+      console.log('Deleting conversation:', conversationId)
+      
+      // Prepare headers with user ID
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+      
+      // Add user ID to headers if available
+      if (user?.id) {
+        headers['x-user-id'] = user.id
+      }
+      
+      const response = await fetch(`/api/conversations/${conversationId}`, {
+        method: 'DELETE',
+        headers
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+      }
+
+      // Refresh the conversations list
+      await fetchConversations()
+      
+      // Dispatch event to update other parts of the UI
+      window.dispatchEvent(new Event('chatHistoryUpdated'))
+      
+      console.log('Conversation deleted successfully')
+    } catch (error) {
+      console.error('Failed to delete conversation:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete conversation'
+      setError(errorMessage)
+      
+      // Show error to user for a few seconds
+      setTimeout(() => {
+        setError(null)
+      }, 5000)
+    }
+  }
+
+  const handleDeleteClick = (conversationId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setConversationToDelete(conversationId)
+    setDeleteConfirmationOpen(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (conversationToDelete) {
+      handleDelete(conversationToDelete)
+      setConversationToDelete(null)
+    }
+    setDeleteConfirmationOpen(false)
+  }
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmationOpen(false)
+    setConversationToDelete(null)
   }
 
   // Force refresh when component becomes visible
@@ -195,13 +280,31 @@ export function SidebarChatHistory() {
   if (conversations.length === 0) {
     return (
       <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-        No conversations yet. Start a new chat!
+        No conversations yet. Start a chat to see it here!
       </div>
     )
   }
 
   return (
     <div className="h-full flex flex-col">
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmationOpen} onOpenChange={setDeleteConfirmationOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the conversation.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelDelete}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-500 hover:bg-red-600">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
       <div className="flex items-center justify-between px-2 py-2">
         <h3 className="text-sm font-semibold text-gray-400">Recent Chats</h3>
         <Button 
@@ -276,6 +379,14 @@ export function SidebarChatHistory() {
                     >
                       <Download className="h-4 w-4 mr-2" />
                       Download
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={(e) => handleDeleteClick(conversation.id, e)}
+                      className="text-red-500 focus:text-red-500"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

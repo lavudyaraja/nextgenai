@@ -27,9 +27,14 @@ export type ConversationWithMessages = Conversation & {
 
 // Database service that uses the real Prisma client
 class DatabaseService {
+  constructor() {
+    console.log('DatabaseService: Initializing database service')
+  }
+  
   conversation = {
     create: async (data: any): Promise<Conversation> => {
       try {
+        console.log('DatabaseService: Creating conversation with data:', data)
         const result = await db.conversation.create(data)
         console.log('DatabaseService: Created conversation via Prisma:', result.id)
         return result
@@ -78,11 +83,13 @@ class DatabaseService {
 
     delete: async (data: any): Promise<boolean> => {
       try {
-        await db.conversation.delete(data)
+        console.log('DatabaseService: Attempting to delete conversation with data:', data)
+        const result = await db.conversation.delete(data)
         console.log('DatabaseService: Deleted conversation:', data.where.id)
         return true
       } catch (error) {
-        console.error('DatabaseService: Failed to delete conversation:', error)
+        console.error('DatabaseService: Failed to delete conversation with data:', data)
+        console.error('DatabaseService: Error details:', error)
         throw error
       }
     },

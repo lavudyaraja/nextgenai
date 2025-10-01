@@ -290,7 +290,7 @@ const FeatureCards = () => {
 }
 
 // export default FeatureCards;
-export default function Chat0UIInterface() {
+export default function ChatUIInterface() {
   const searchParams = useSearchParams()
   const urlConversationId = searchParams.get('id')
   
@@ -353,42 +353,33 @@ export default function Chat0UIInterface() {
   // Load conversation messages when component mounts or conversationId changes
   useEffect(() => {
     const loadConversation = async () => {
-      if (!initialLoadComplete && conversationId && conversationId !== urlConversationId) {
-        return
-      }
+      // Always reset messages when URL changes
+      setMessages([])
+      setInitialLoadComplete(false)
       
       if (urlConversationId) {
         try {
           console.log('Loading conversation:', urlConversationId)
           const conversationMessages = await getMessagesByConversationId(urlConversationId)
-          setMessages(prevMessages => {
-            if (prevMessages.length > 0) {
-              if (JSON.stringify(prevMessages) !== JSON.stringify(conversationMessages)) {
-                const mergedMessages = [...prevMessages]
-                conversationMessages.forEach(loadedMsg => {
-                  if (!prevMessages.some(prevMsg => prevMsg.id === loadedMsg.id)) {
-                    mergedMessages.push(loadedMsg)
-                  }
-                })
-                return mergedMessages
-              }
-              return prevMessages
-            }
-            return conversationMessages
-          })
+          setMessages(conversationMessages)
           setConversationId(urlConversationId)
           setInitialLoadComplete(true)
         } catch (error) {
           console.error('Failed to load conversation:', error)
+          setMessages([])
+          setConversationId(urlConversationId)
           setInitialLoadComplete(true)
         }
       } else {
+        // No conversation ID in URL, clear messages
+        setMessages([])
+        setConversationId(null)
         setInitialLoadComplete(true)
       }
     }
 
     loadConversation()
-  }, [urlConversationId, initialLoadComplete])
+  }, [urlConversationId]) // Only depend on urlConversationId to trigger when URL changes
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -444,6 +435,11 @@ export default function Chat0UIInterface() {
           const url = new URL(window.location.href)
           url.searchParams.set('id', currentConversationId)
           window.history.replaceState({}, '', url.toString())
+          
+          // Dispatch event to update sidebar chat history
+          setTimeout(() => {
+            window.dispatchEvent(new Event('chatHistoryUpdated'))
+          }, 100)
         }
       }
 
@@ -486,8 +482,9 @@ export default function Chat0UIInterface() {
       setMessages(prev => [...prev, aiMessage])
 
       // Dispatch event to update sidebar chat history
-      window.dispatchEvent(new Event('chatHistoryUpdated'))
-
+      setTimeout(() => {
+        window.dispatchEvent(new Event('chatHistoryUpdated'))
+      }, 100)
     } catch (error) {
       console.error('Error calling API:', error)
       // Handle error - add error message
@@ -502,6 +499,10 @@ export default function Chat0UIInterface() {
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
+      // Dispatch event to update sidebar chat history even in case of errors
+      setTimeout(() => {
+        window.dispatchEvent(new Event('chatHistoryUpdated'))
+      }, 100)
     }
   }
 

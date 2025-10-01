@@ -14,8 +14,8 @@ interface AccountSettingsProps {
 }
 
 export function AccountSettings({ onSave }: AccountSettingsProps) {
-  const [name, setName] = useState<string>('John Doe')
-  const [email, setEmail] = useState<string>('john.doe@example.com')
+  const [name, setName] = useState<string>('raja lavudya')
+  const [email, setEmail] = useState<string>('example@gmail.com')
   const [currentPassword, setCurrentPassword] = useState<string>('')
   const [newPassword, setNewPassword] = useState<string>('')
   const [confirmPassword, setConfirmPassword] = useState<string>('')
