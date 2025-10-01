@@ -45,7 +45,6 @@ Built with cutting-edge technologies, it provides a production-ready solution fo
 - 🎨 **Modern UI/UX**: Built with TailwindCSS and shadcn/ui components
 - 🌐 **Responsive Design**: Works seamlessly on desktop, tablet, and mobile
 - ⚡ **Performance Optimized**: Fast loading and smooth interactions
-- 🌙 **Dark/Light Theme**: Automatic theme switching based on system preference
 - 📊 **Analytics Dashboard**: Track usage statistics and conversation metrics
 - 🖥️ **Desktop Application**: Electron-based desktop version available
 
